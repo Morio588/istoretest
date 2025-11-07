@@ -956,12 +956,8 @@
                   <th>大分類</th>
                   <th>中分類</th>
                   <th>小分類</th>
-                  <th id="stockHeader" style="display: none;">
-                    庫存
-                    <select id="storeSelector" style="display: block; margin-top: 4px; padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; background: white; cursor: pointer;">
-                      <option value="total">總庫存</option>
-                    </select>
-                  </th>
+                  <!-- 🆕 預設只顯示 75 店庫存 -->
+                  <th class="stock-header" data-store="75" style="display: none;">75</th>
                   <th>備註</th>
                 </tr>
               </thead>
@@ -1162,9 +1158,13 @@
     let activeQuickSubcategory = null;
     let inventoryData = {}; // 🆕 儲存庫存資料
     let storeInfo = {}; // 🆕 店別資訊
-    let selectedStore = 'total'; // 🆕 當前選擇的店別（預設：總庫存）
+    let selectedStore = '75'; // 🆕 當前選擇的店別（預設：75店）
     let currentUserEmail = ''; // 🆕 當前使用者 email
     let hasInventoryPermission = false; // 🆕 是否有庫存查看權限
+    
+    // 🆕 要顯示的店別清單（依序顯示）
+    const DISPLAY_STORES = ['total', '75', '76', '77', '45', '47', '48', '51'];
+    const DEFAULT_STORE = '75'; // 🆕 預設顯示的店別
     
     // 🆕 有庫存查看權限的使用者清單
     const INVENTORY_PERMISSION_USERS = [
@@ -1499,7 +1499,7 @@
       tbody.innerHTML = '';
       
       // 🆕 根據權限決定 colspan
-      const colspanCount = hasInventoryPermission ? 8 : 7;
+      const colspanCount = hasInventoryPermission ? 15 : 7;
       
       if (filteredData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${colspanCount}" class="no-results">沒有符合的資料</td></tr>`;
@@ -1509,76 +1509,77 @@
       filteredData.forEach(row => {
         const code = row[columnMapping['Code']] || '';
         
-        // 🆕 只有有權限的使用者才處理庫存
-        let stockHtml = '';
+        const tr = document.createElement('tr');
+        
+        // 基本欄位
+        let html = `
+          <td>${row[columnMapping['manufacture_style']] || ''}</td>
+          <td>${code}</td>
+          <td>${row[columnMapping['product_name']] || ''}</td>
+          <td>${row[columnMapping['大分類']] || ''}</td>
+          <td>${row[columnMapping['中分類']] || ''}</td>
+          <td>${row[columnMapping['小分類']] || ''}</td>
+        `;
+        
+        // 🆕 如果有權限，顯示多店庫存
         if (hasInventoryPermission) {
           const productInventory = inventoryData[code];
           
-          // 🆕 根據選擇的店別取得庫存數量
-          let stock = 0;
-          if (productInventory) {
-            if (selectedStore === 'total') {
-              // 顯示總庫存
-              stock = productInventory.total || 0;
-            } else {
-              // 顯示特定店別的庫存
-              stock = productInventory.stores?.[selectedStore] || 0;
+          DISPLAY_STORES.forEach(storeId => {
+            let stock = 0;
+            if (productInventory) {
+              if (storeId === 'total') {
+                stock = productInventory.total || 0;
+              } else {
+                stock = productInventory.stores?.[storeId] || 0;
+              }
             }
-          }
-          
-          // 決定庫存顯示
-          stockHtml = '<span class="stock-unknown">-</span>';
-          if (stock === 0 && productInventory) {
-            stockHtml = '<span class="stock-out">0</span>';
-          } else if (stock > 0 && stock <= 5) {
-            stockHtml = `<span class="stock-low">${stock}</span>`;
-          } else if (stock > 5) {
-            stockHtml = `<span class="stock-available">${stock}</span>`;
-          }
+            
+            // 決定庫存顯示樣式
+            let stockHtml = '<span class="stock-unknown">-</span>';
+            if (stock === 0 && productInventory) {
+              stockHtml = '<span class="stock-out">0</span>';
+            } else if (stock > 0 && stock <= 5) {
+              stockHtml = `<span class="stock-low">${stock}</span>`;
+            } else if (stock > 5) {
+              stockHtml = `<span class="stock-available">${stock}</span>`;
+            }
+            
+            html += `<td class="stock-cell">${stockHtml}</td>`;
+          });
         }
         
-        const tr = document.createElement('tr');
+        // 備註欄位
+        html += `<td>${row[columnMapping['Remark']] || ''}</td>`;
         
-        // 🆕 根據權限決定是否顯示庫存欄位
-        if (hasInventoryPermission) {
-          tr.innerHTML = `
-            <td>${row[columnMapping['manufacture_style']] || ''}</td>
-            <td>${code}</td>
-            <td>${row[columnMapping['product_name']] || ''}</td>
-            <td>${row[columnMapping['大分類']] || ''}</td>
-            <td>${row[columnMapping['中分類']] || ''}</td>
-            <td>${row[columnMapping['小分類']] || ''}</td>
-            <td class="stock-cell">${stockHtml}</td>
-            <td>${row[columnMapping['Remark']] || ''}</td>
-          `;
-        } else {
-          tr.innerHTML = `
-            <td>${row[columnMapping['manufacture_style']] || ''}</td>
-            <td>${code}</td>
-            <td>${row[columnMapping['product_name']] || ''}</td>
-            <td>${row[columnMapping['大分類']] || ''}</td>
-            <td>${row[columnMapping['中分類']] || ''}</td>
-            <td>${row[columnMapping['小分類']] || ''}</td>
-            <td>${row[columnMapping['Remark']] || ''}</td>
-          `;
-        }
-        
+        tr.innerHTML = html;
         tbody.appendChild(tr);
       });
     }
 
     // 🆕 根據權限初始化介面
+    // 🆕 預設顯示的店別清單（只有有權限的人看得到）
+    const DEFAULT_VISIBLE_STORES = ['75']; // 預設只顯示 75 店
+
     function initializeInventoryUI() {
-      const stockHeader = document.getElementById('stockHeader');
       const inventoryStatus = document.getElementById('inventoryStatus');
       
       if (hasInventoryPermission) {
-        // 顯示庫存欄位
-        if (stockHeader) stockHeader.style.display = '';
-        console.log('✅ 庫存欄位已啟用');
+        // 🆕 顯示指定的店別欄位
+        DEFAULT_VISIBLE_STORES.forEach(storeId => {
+          const header = document.querySelector(`.stock-header[data-store="${storeId}"]`);
+          if (header) {
+            header.style.display = '';
+          }
+        });
+        
+        console.log(`✅ 庫存欄位已啟用 (顯示店別: ${DEFAULT_VISIBLE_STORES.join(', ')})`);
       } else {
-        // 隱藏庫存欄位
-        if (stockHeader) stockHeader.style.display = 'none';
+        // 隱藏所有庫存欄位
+        const allStockHeaders = document.querySelectorAll('.stock-header');
+        allStockHeaders.forEach(header => {
+          header.style.display = 'none';
+        });
         if (inventoryStatus) inventoryStatus.style.display = 'none';
         console.log('⚠️ 庫存欄位已隱藏');
       }
@@ -1638,14 +1639,15 @@
         const option = document.createElement('option');
         option.value = storeId;
         
-        // 解決編碼問題，顯示店名
-        let storeName = storeInfo[storeId];
-        // 如果是亂碼，就只顯示店別代碼
-        if (storeName && storeName.includes('¥')) {
-          storeName = `店別 ${storeId}`;
+        // 🆕 只顯示店別代號（不顯示店名）
+        option.textContent = storeId;
+        
+        // 🆕 預設選擇 75
+        if (storeId === '75') {
+          option.selected = true;
+          selectedStore = '75';
         }
         
-        option.textContent = `${storeId} - ${storeName}`;
         selector.appendChild(option);
       });
       
@@ -1657,6 +1659,7 @@
       });
       
       console.log(`✅ 店別選單已初始化 (${sortedStores.length} 個店別)`);
+      console.log(`📍 預設顯示: 店別 75`);
     }
 
     // 載入產品資料
