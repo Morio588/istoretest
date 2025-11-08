@@ -956,6 +956,7 @@
                   <th>大分類</th>
                   <th>中分類</th>
                   <th>小分類</th>
+                  <th id="totalStockHeader" style="display: none;">總庫存</th>
                   <th id="stockHeader" style="display: none;">
                     庫存
                     <select id="storeSelector" style="display: block; margin-top: 4px; padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; background: white; cursor: pointer;">
@@ -967,7 +968,7 @@
               </thead>
               <tbody>
                 <tr>
-                  <td colspan="8" class="loading">
+                  <td colspan="9" class="loading">
                     <div class="spinner"></div>
                   </td>
                 </tr>
@@ -1498,8 +1499,8 @@
       const tbody = document.querySelector('#resultTable tbody');
       tbody.innerHTML = '';
       
-      // 🆕 根據權限決定 colspan
-      const colspanCount = hasInventoryPermission ? 8 : 7;
+      // 🆕 根據權限決定 colspan（有權限時多兩欄：總庫存 + 店別庫存）
+      const colspanCount = hasInventoryPermission ? 9 : 7;
       
       if (filteredData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${colspanCount}" class="no-results">沒有符合的資料</td></tr>`;
@@ -1510,15 +1511,33 @@
         const code = row[columnMapping['Code']] || '';
         
         // 🆕 只有有權限的使用者才處理庫存
+        let totalStockHtml = '';
         let stockHtml = '';
+        
         if (hasInventoryPermission) {
           const productInventory = inventoryData[code];
+          
+          // 計算總庫存
+          let totalStock = 0;
+          if (productInventory) {
+            totalStock = productInventory.total || 0;
+          }
+          
+          // 顯示總庫存
+          totalStockHtml = '<span class="stock-unknown">-</span>';
+          if (totalStock === 0 && productInventory) {
+            totalStockHtml = '<span class="stock-out">0</span>';
+          } else if (totalStock > 0 && totalStock <= 5) {
+            totalStockHtml = `<span class="stock-low">${totalStock}</span>`;
+          } else if (totalStock > 5) {
+            totalStockHtml = `<span class="stock-available">${totalStock}</span>`;
+          }
           
           // 🆕 根據選擇的店別取得庫存數量
           let stock = 0;
           if (productInventory) {
             if (selectedStore === 'total') {
-              // 顯示總庫存
+              // 顯示總庫存（與總庫存欄位相同）
               stock = productInventory.total || 0;
             } else {
               // 顯示特定店別的庫存
@@ -1526,7 +1545,7 @@
             }
           }
           
-          // 決定庫存顯示
+          // 決定店別庫存顯示
           stockHtml = '<span class="stock-unknown">-</span>';
           if (stock === 0 && productInventory) {
             stockHtml = '<span class="stock-out">0</span>';
@@ -1548,6 +1567,7 @@
             <td>${row[columnMapping['大分類']] || ''}</td>
             <td>${row[columnMapping['中分類']] || ''}</td>
             <td>${row[columnMapping['小分類']] || ''}</td>
+            <td class="stock-cell">${totalStockHtml}</td>
             <td class="stock-cell">${stockHtml}</td>
             <td>${row[columnMapping['Remark']] || ''}</td>
           `;
@@ -1569,15 +1589,18 @@
 
     // 🆕 根據權限初始化介面
     function initializeInventoryUI() {
+      const totalStockHeader = document.getElementById('totalStockHeader');
       const stockHeader = document.getElementById('stockHeader');
       const inventoryStatus = document.getElementById('inventoryStatus');
       
       if (hasInventoryPermission) {
         // 顯示庫存欄位
+        if (totalStockHeader) totalStockHeader.style.display = '';
         if (stockHeader) stockHeader.style.display = '';
         console.log('✅ 庫存欄位已啟用');
       } else {
         // 隱藏庫存欄位
+        if (totalStockHeader) totalStockHeader.style.display = 'none';
         if (stockHeader) stockHeader.style.display = 'none';
         if (inventoryStatus) inventoryStatus.style.display = 'none';
         console.log('⚠️ 庫存欄位已隱藏');
