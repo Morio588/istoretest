@@ -1116,14 +1116,22 @@
         document.getElementById('userName').textContent = user.displayName || user.email;
         document.getElementById('userAvatar').src = user.photoURL || 'https://via.placeholder.com/36';
         
-        // 🆕 儲存使用者資訊並檢查權限
+        // 🆕 取得使用者權限設定
         currentUserEmail = user.email;
-        hasInventoryPermission = INVENTORY_PERMISSION_USERS.includes(user.email);
+        const permissions = getUserPermissions(user.email);
+        
+        userRole = permissions.role;
+        hasInventoryPermission = permissions.canViewInventory;
+        canSwitchStore = permissions.canSwitchStore;
+        selectedStore = permissions.defaultStore;
         
         console.log(`👤 使用者: ${user.email}`);
-        console.log(`🔐 庫存權限: ${hasInventoryPermission ? '✅ 有' : '❌ 無'}`);
+        console.log(`👔 身份: ${userRole}`);
+        console.log(`📊 庫存權限: ${hasInventoryPermission ? '✅ 有' : '❌ 無'}`);
+        console.log(`🏪 預設店別: ${selectedStore}`);
+        console.log(`🔄 切換店別: ${canSwitchStore ? '✅ 可以' : '❌ 不可'}`);
         
-        // 🆕 初始化介面（顯示/隱藏庫存欄位）
+        // 🆕 初始化介面（顯示/隱藏庫存欄位、設定店別選單）
         initializeInventoryUI();
         
         // 登入後載入資料
@@ -1158,9 +1166,12 @@
         // 2. 清除本地資料
         currentUserEmail = '';
         hasInventoryPermission = false;
+        userRole = 'none';
+        canSwitchStore = false;
         inventoryData = {};
         storeInfo = {};
         originalData = [];
+        selectedStore = '75';
         
         // 3. 清除快取的認證資訊（如果有的話）
         if (window.sessionStorage) {
@@ -1203,11 +1214,86 @@
     let selectedStore = '75'; // 🆕 當前選擇的店別（預設：75店）
     let currentUserEmail = ''; // 🆕 當前使用者 email
     let hasInventoryPermission = false; // 🆕 是否有庫存查看權限
+    let userRole = 'none'; // 🆕 使用者身份
+    let canSwitchStore = false; // 🆕 是否可以切換店別
     
-    // 🆕 有庫存查看權限的使用者清單
-    const INVENTORY_PERMISSION_USERS = [
-      'morio.chang@istore.com.tw'
-    ];
+    // 🆕 權限分組系統
+    const USER_PERMISSIONS = {
+      // 管理員：完整權限
+      administrator: {
+        users: [
+          'morio.chang@istore.com.tw'
+        ],
+        canViewInventory: true,      // 可以看到總庫存和庫存欄位
+        defaultStore: '75',           // 預設顯示店別 75
+        canSwitchStore: true          // 可以切換所有店別
+      },
+      
+      // 經理：完整權限
+      manager: {
+        users: [
+          'onion.huang@istore.com.tw'
+        ],
+        canViewInventory: true,      // 可以看到總庫存和庫存欄位
+        defaultStore: '75',           // 預設顯示店別 75
+        canSwitchStore: true          // 可以切換所有店別
+      },
+      
+      // 店別 75：只能看自己店
+      store_75: {
+        users: [
+          'istore.tc@istore.com.tw',
+          'ivy.chu@istore.com.tw',
+          'iris.chang@istore.com.tw',
+          'jimmy.chen@istore.com.tw',
+          'frank.chang@istore.com.tw',
+          'amy.chen@istore.com.tw',
+          'sharon.hsu@istore.com.tw',
+          'run.lin@istore.com.tw',
+          'luna.lin@istore.com.tw'
+        ],
+        canViewInventory: true,      // 可以看到總庫存和庫存欄位
+        defaultStore: '75',           // 預設顯示店別 75
+        canSwitchStore: false         // 無法切換店別
+      },
+      
+      // 店別 77：只能看自己店
+      store_77: {
+        users: [
+          'istore.mtc@istore.com.tw',
+          'mark.hung@istore.com.tw',
+          'william.huang@istore.com.tw',
+          'allen.chen@istore.com.tw',
+          'ariel.chen@istore.com.tw',
+          'ziwei.chiang@istore.com.tw',
+          'harry.lin@istore.com.tw'
+        ],
+        canViewInventory: true,      // 可以看到總庫存和庫存欄位
+        defaultStore: '77',           // 預設顯示店別 77
+        canSwitchStore: false         // 無法切換店別
+      }
+    };
+    
+    // 🆕 根據 email 取得使用者權限
+    function getUserPermissions(email) {
+      for (const [role, config] of Object.entries(USER_PERMISSIONS)) {
+        if (config.users.includes(email)) {
+          return {
+            role: role,
+            canViewInventory: config.canViewInventory,
+            defaultStore: config.defaultStore,
+            canSwitchStore: config.canSwitchStore
+          };
+        }
+      }
+      // 其他人：無權限
+      return {
+        role: 'none',
+        canViewInventory: false,
+        defaultStore: '75',
+        canSwitchStore: false
+      };
+    }
 
     function showPage(pageName) {
       document.querySelectorAll('.page').forEach(page => {
@@ -1629,11 +1715,36 @@
       const totalStockHeader = document.getElementById('totalStockHeader');
       const stockHeader = document.getElementById('stockHeader');
       const inventoryStatus = document.getElementById('inventoryStatus');
+      const storeSelector = document.getElementById('storeSelector');
       
       if (hasInventoryPermission) {
         // 顯示庫存欄位
         if (totalStockHeader) totalStockHeader.style.display = '';
         if (stockHeader) stockHeader.style.display = '';
+        
+        // 🆕 根據 canSwitchStore 控制店別選單
+        if (storeSelector) {
+          if (canSwitchStore) {
+            // 可以切換店別：顯示選單
+            storeSelector.style.display = 'block';
+            console.log('✅ 店別選單已啟用');
+          } else {
+            // 不能切換店別：隱藏選單，只顯示固定店別
+            storeSelector.style.display = 'none';
+            
+            // 在標題中顯示固定的店別
+            const stockHeaderLabel = stockHeader.querySelector('span') || stockHeader;
+            const storeName = storeInfo[selectedStore] || `店別 ${selectedStore}`;
+            
+            // 如果還沒有 span，創建一個
+            if (!stockHeader.querySelector('span')) {
+              stockHeader.innerHTML = `庫存<br><span style="font-size: 11px; font-weight: 400; opacity: 0.8;">${storeName}</span>`;
+            }
+            
+            console.log(`🔒 店別選單已鎖定為: ${selectedStore}`);
+          }
+        }
+        
         console.log('✅ 庫存欄位已啟用');
       } else {
         // 隱藏庫存欄位
@@ -1699,15 +1810,15 @@
         option.value = storeId;
         option.textContent = storeId; // 只顯示店別代號
         
-        // 預設選擇 75
-        if (storeId === '75') {
+        // 🆕 根據使用者權限設定的預設店別來選擇
+        if (storeId === selectedStore) {
           option.selected = true;
         }
         
         selector.appendChild(option);
       });
       
-      // 監聽選擇變化
+      // 監聽選擇變化（只有 canSwitchStore 為 true 時才會看到選單）
       selector.addEventListener('change', function() {
         selectedStore = this.value;
         console.log(`📍 切換到: ${selectedStore === 'total' ? '總庫存' : '店別 ' + selectedStore}`);
