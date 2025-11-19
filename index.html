@@ -236,6 +236,13 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        .chart-title {
+            color: #667eea;
+            margin: 30px 0 15px 0;
+            text-align: center;
+            font-size: 1.3em;
+        }
     </style>
 </head>
 <body>
@@ -281,8 +288,14 @@
                 
                 <div class="summary-cards" id="summaryCards"></div>
                 
+                <h3 class="chart-title">25Q4 銷售趨勢</h3>
                 <div class="chart-container">
-                    <canvas id="filteredChart"></canvas>
+                    <canvas id="chart25Q4"></canvas>
+                </div>
+                
+                <h3 class="chart-title">26Q1 銷售趨勢</h3>
+                <div class="chart-container">
+                    <canvas id="chart26Q1"></canvas>
                 </div>
             </div>
             
@@ -311,6 +324,9 @@
         let charts = {};
         let selectedStore = 'all';
         let selectedClass = 'all';
+        
+        // 品項排序
+        const classOrder = ['CPU', 'iPad', 'iPhone', 'Apple Watch', 'AirPods', 'Audio', 'Care', 'Accy', '3rd Party'];
         
         function handleFileUpload(quarter, input) {
             const file = input.files[0];
@@ -417,7 +433,16 @@
             }
             
             result.stores = Array.from(result.stores).sort((a, b) => a - b);
-            result.classes = Array.from(result.classes).sort();
+            
+            // 根據指定順序排序品項
+            result.classes = Array.from(result.classes).sort((a, b) => {
+                const indexA = classOrder.indexOf(a);
+                const indexB = classOrder.indexOf(b);
+                if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+            });
             
             return result;
         }
@@ -510,6 +535,9 @@
                                     return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 件';
                                 }
                             }
+                        },
+                        datalabels: {
+                            display: false
                         }
                     },
                     scales: {
@@ -583,6 +611,9 @@
                                     return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
                                 }
                             }
+                        },
+                        datalabels: {
+                            display: false
                         }
                     },
                     scales: {
@@ -613,7 +644,7 @@
                 storeButtons.appendChild(btn);
             });
             
-            // 創建品項按鈕
+            // 創建品項按鈕 - 使用排序後的順序
             classButtons.innerHTML = '<button class="quick-btn active" onclick="selectClass(\'all\')">全部</button>';
             data25Q4.classes.forEach(cls => {
                 const btn = document.createElement('button');
@@ -658,42 +689,51 @@
         
         function updateFilteredCharts() {
             const comparableWeeks = getComparableWeeks();
-            const ctx = document.getElementById('filteredChart').getContext('2d');
             
-            const weeks = Array.from({length: comparableWeeks}, (_, i) => `W${i + 1}`);
+            // 創建 25Q4 圖表
+            create25Q4Chart(comparableWeeks);
+            
+            // 創建 26Q1 圖表
+            create26Q1Chart(comparableWeeks);
+            
+            calculateSummary();
+        }
+        
+        function create25Q4Chart(comparableWeeks) {
+            const ctx = document.getElementById('chart25Q4').getContext('2d');
+            
+            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
             const qty25Q4 = [];
-            const qty26Q1 = [];
             
-            for (let i = 1; i <= comparableWeeks; i++) {
-                let filtered25Q4 = data25Q4.data.filter(d => d.weekNum === i);
-                let filtered26Q1 = data26Q1.data.filter(d => d.weekNum === i);
+            for (let i = 1; i <= 13; i++) {
+                let filtered = data25Q4.data.filter(d => d.weekNum === i);
                 
                 if (selectedStore !== 'all') {
-                    filtered25Q4 = filtered25Q4.filter(d => d.store == selectedStore);
-                    filtered26Q1 = filtered26Q1.filter(d => d.store == selectedStore);
+                    filtered = filtered.filter(d => d.store == selectedStore);
                 }
                 
                 if (selectedClass !== 'all') {
-                    filtered25Q4 = filtered25Q4.filter(d => d.class === selectedClass);
-                    filtered26Q1 = filtered26Q1.filter(d => d.class === selectedClass);
+                    filtered = filtered.filter(d => d.class === selectedClass);
                 }
                 
-                const sum25Q4 = filtered25Q4.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
-                const sum26Q1 = filtered26Q1.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
-                
-                qty25Q4.push(sum25Q4);
-                qty26Q1.push(sum26Q1);
+                const sum = filtered.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                qty25Q4.push(sum);
             }
             
-            if (charts.filtered) charts.filtered.destroy();
+            // 計算平均週銷（只計算對比週數內的平均）
+            const validQty = qty25Q4.slice(0, comparableWeeks).filter(q => q > 0);
+            const avgQty = validQty.length > 0 ? validQty.reduce((a, b) => a + b, 0) / validQty.length : 0;
+            const avgLine = Array(13).fill(avgQty);
             
-            charts.filtered = new Chart(ctx, {
+            if (charts.chart25Q4) charts.chart25Q4.destroy();
+            
+            charts.chart25Q4 = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: weeks,
                     datasets: [
                         {
-                            label: '25Q4',
+                            label: '25Q4 銷量',
                             data: qty25Q4,
                             borderColor: '#f87171',
                             backgroundColor: 'rgba(248, 113, 113, 0.1)',
@@ -716,26 +756,15 @@
                             }
                         },
                         {
-                            label: '26Q1',
-                            data: qty26Q1,
-                            borderColor: '#667eea',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                            tension: 0.4,
-                            fill: true,
-                            pointRadius: 6,
-                            pointHoverRadius: 8,
-                            borderWidth: 3,
+                            label: `平均週銷: ${avgQty.toFixed(0)}`,
+                            data: avgLine,
+                            borderColor: '#94a3b8',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
                             datalabels: {
-                                align: 'bottom',
-                                offset: 8,
-                                color: '#667eea',
-                                font: {
-                                    weight: 'bold',
-                                    size: 11
-                                },
-                                formatter: function(value) {
-                                    return value > 0 ? value.toLocaleString() : '';
-                                }
+                                display: false
                             }
                         }
                     ]
@@ -756,6 +785,9 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
+                                    if (context.dataset.label.includes('平均')) {
+                                        return context.dataset.label;
+                                    }
                                     return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 件';
                                 }
                             }
@@ -773,8 +805,114 @@
                     }
                 }
             });
+        }
+        
+        function create26Q1Chart(comparableWeeks) {
+            const ctx = document.getElementById('chart26Q1').getContext('2d');
             
-            calculateSummary();
+            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
+            const qty26Q1 = [];
+            
+            for (let i = 1; i <= 13; i++) {
+                let filtered = data26Q1.data.filter(d => d.weekNum === i);
+                
+                if (selectedStore !== 'all') {
+                    filtered = filtered.filter(d => d.store == selectedStore);
+                }
+                
+                if (selectedClass !== 'all') {
+                    filtered = filtered.filter(d => d.class === selectedClass);
+                }
+                
+                const sum = filtered.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                qty26Q1.push(sum);
+            }
+            
+            // 計算平均週銷（只計算有數據的週次）
+            const validQty = qty26Q1.filter(q => q > 0);
+            const avgQty = validQty.length > 0 ? validQty.reduce((a, b) => a + b, 0) / validQty.length : 0;
+            const avgLine = Array(13).fill(avgQty);
+            
+            if (charts.chart26Q1) charts.chart26Q1.destroy();
+            
+            charts.chart26Q1 = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: weeks,
+                    datasets: [
+                        {
+                            label: '26Q1 銷量',
+                            data: qty26Q1,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            borderWidth: 3,
+                            datalabels: {
+                                align: 'bottom',
+                                offset: 8,
+                                color: '#667eea',
+                                font: {
+                                    weight: 'bold',
+                                    size: 11
+                                },
+                                formatter: function(value) {
+                                    return value > 0 ? value.toLocaleString() : '';
+                                }
+                            }
+                        },
+                        {
+                            label: `平均週銷: ${avgQty.toFixed(0)}`,
+                            data: avgLine,
+                            borderColor: '#94a3b8',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            datalabels: {
+                                display: false
+                            }
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.label.includes('平均')) {
+                                        return context.dataset.label;
+                                    }
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 件';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
         
         function calculateSummary() {
