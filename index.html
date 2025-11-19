@@ -6,6 +6,7 @@
     <title>季度銷售數據分析工具</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -139,17 +140,37 @@
         
         .filter-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
             font-weight: bold;
             color: #333;
+            font-size: 16px;
         }
         
-        .filter-group select {
-            width: 100%;
-            padding: 10px;
+        .quick-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-btn {
+            padding: 10px 20px;
             border: 2px solid #667eea;
+            background: white;
             border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
             font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .quick-btn:hover {
+            background: #f0f4ff;
+        }
+        
+        .quick-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #764ba2;
         }
         
         .summary-cards {
@@ -246,41 +267,23 @@
         
         <div class="results" id="results">
             <div class="chart-section">
-                <h2>總銷量趨勢對比（週次）</h2>
-                <div class="chart-container">
-                    <canvas id="totalQtyChart"></canvas>
-                </div>
-            </div>
-            
-            <div class="chart-section">
-                <h2>總業績趨勢對比（週次）</h2>
-                <div class="chart-container">
-                    <canvas id="totalRevenueChart"></canvas>
-                </div>
-            </div>
-            
-            <div class="chart-section">
-                <h2>篩選分析</h2>
+                <h2>銷售數據分析</h2>
                 <div class="filters">
                     <div class="filter-group">
                         <label>選擇門市：</label>
-                        <select id="storeFilter" onchange="updateFilteredCharts()">
-                            <option value="all">全部門市</option>
-                        </select>
+                        <div class="quick-buttons" id="storeButtons"></div>
                     </div>
                     <div class="filter-group">
                         <label>選擇品項：</label>
-                        <select id="classFilter" onchange="updateFilteredCharts()">
-                            <option value="all">全部品項</option>
-                        </select>
+                        <div class="quick-buttons" id="classButtons"></div>
                     </div>
                 </div>
+                
+                <div class="summary-cards" id="summaryCards"></div>
                 
                 <div class="chart-container">
                     <canvas id="filteredChart"></canvas>
                 </div>
-                
-                <div class="summary-cards" id="summaryCards"></div>
             </div>
             
             <div class="chart-section">
@@ -300,9 +303,14 @@
     </div>
 
     <script>
+        // 註冊ChartDataLabels插件
+        Chart.register(ChartDataLabels);
+        
         let data25Q4 = null;
         let data26Q1 = null;
         let charts = {};
+        let selectedStore = 'all';
+        let selectedClass = 'all';
         
         function handleFileUpload(quarter, input) {
             const file = input.files[0];
@@ -326,6 +334,16 @@
                 };
                 reader.readAsArrayBuffer(file);
             }
+        }
+        
+        // 計算實際可對比的週次
+        function getComparableWeeks() {
+            if (!data25Q4 || !data26Q1) return 13;
+            
+            // 找出26Q1有數據的最大週次
+            const maxWeek26Q1 = Math.max(...data26Q1.data.map(d => d.weekNum));
+            
+            return maxWeek26Q1;
         }
         
         function parseExcelData(rawData, quarter) {
@@ -428,12 +446,6 @@
         }
         
         function createAllCharts() {
-            // 總銷量趨勢
-            createTotalQtyChart();
-            
-            // 總業績趨勢
-            createTotalRevenueChart();
-            
             // 品項對比
             createCategoryComparisonChart();
             
@@ -441,175 +453,20 @@
             createStoreComparisonChart();
         }
         
-        function createTotalQtyChart() {
-            const ctx = document.getElementById('totalQtyChart').getContext('2d');
-            
-            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
-            const qty25Q4 = [];
-            const qty26Q1 = [];
-            
-            for (let i = 1; i <= 13; i++) {
-                const sum25Q4 = data25Q4.data
-                    .filter(d => d.weekNum === i)
-                    .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
-                const sum26Q1 = data26Q1.data
-                    .filter(d => d.weekNum === i)
-                    .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
-                
-                qty25Q4.push(sum25Q4);
-                qty26Q1.push(sum26Q1);
-            }
-            
-            if (charts.totalQty) charts.totalQty.destroy();
-            
-            charts.totalQty = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: weeks,
-                    datasets: [
-                        {
-                            label: '25Q4 銷量',
-                            data: qty25Q4,
-                            borderColor: '#f87171',
-                            backgroundColor: 'rgba(248, 113, 113, 0.1)',
-                            tension: 0.4,
-                            fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
-                        },
-                        {
-                            label: '26Q1 銷量',
-                            data: qty26Q1,
-                            borderColor: '#667eea',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                            tension: 0.4,
-                            fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 件';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toLocaleString();
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        function createTotalRevenueChart() {
-            const ctx = document.getElementById('totalRevenueChart').getContext('2d');
-            
-            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
-            const rev25Q4 = [];
-            const rev26Q1 = [];
-            
-            for (let i = 1; i <= 13; i++) {
-                const sum25Q4 = data25Q4.data
-                    .filter(d => d.weekNum === i)
-                    .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
-                const sum26Q1 = data26Q1.data
-                    .filter(d => d.weekNum === i)
-                    .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
-                
-                rev25Q4.push(Math.round(sum25Q4));
-                rev26Q1.push(Math.round(sum26Q1));
-            }
-            
-            if (charts.totalRevenue) charts.totalRevenue.destroy();
-            
-            charts.totalRevenue = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: weeks,
-                    datasets: [
-                        {
-                            label: '25Q4 業績',
-                            data: rev25Q4,
-                            borderColor: '#f87171',
-                            backgroundColor: 'rgba(248, 113, 113, 0.1)',
-                            tension: 0.4,
-                            fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
-                        },
-                        {
-                            label: '26Q1 業績',
-                            data: rev26Q1,
-                            borderColor: '#667eea',
-                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                            tension: 0.4,
-                            fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + (value / 1000000).toFixed(1) + 'M';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
         function createCategoryComparisonChart() {
             const ctx = document.getElementById('categoryComparisonChart').getContext('2d');
             
+            const comparableWeeks = getComparableWeeks();
             const categories = [...data25Q4.classes];
             const qty25Q4 = [];
             const qty26Q1 = [];
             
             categories.forEach(cat => {
                 const sum25Q4 = data25Q4.data
-                    .filter(d => d.class === cat)
+                    .filter(d => d.class === cat && d.weekNum <= comparableWeeks)
                     .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
                 const sum26Q1 = data26Q1.data
-                    .filter(d => d.class === cat)
+                    .filter(d => d.class === cat && d.weekNum <= comparableWeeks)
                     .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
                 
                 qty25Q4.push(sum25Q4);
@@ -624,14 +481,14 @@
                     labels: categories,
                     datasets: [
                         {
-                            label: '25Q4',
+                            label: `25Q4 (W1-W${comparableWeeks})`,
                             data: qty25Q4,
                             backgroundColor: 'rgba(248, 113, 113, 0.7)',
                             borderColor: '#f87171',
                             borderWidth: 2
                         },
                         {
-                            label: '26Q1',
+                            label: `26Q1 (W1-W${comparableWeeks})`,
                             data: qty26Q1,
                             backgroundColor: 'rgba(102, 126, 234, 0.7)',
                             borderColor: '#667eea',
@@ -672,16 +529,17 @@
         function createStoreComparisonChart() {
             const ctx = document.getElementById('storeComparisonChart').getContext('2d');
             
+            const comparableWeeks = getComparableWeeks();
             const stores = [...data25Q4.stores];
             const rev25Q4 = [];
             const rev26Q1 = [];
             
             stores.forEach(store => {
                 const sum25Q4 = data25Q4.data
-                    .filter(d => d.store === store)
+                    .filter(d => d.store === store && d.weekNum <= comparableWeeks)
                     .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
                 const sum26Q1 = data26Q1.data
-                    .filter(d => d.store === store)
+                    .filter(d => d.store === store && d.weekNum <= comparableWeeks)
                     .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
                 
                 rev25Q4.push(Math.round(sum25Q4));
@@ -693,17 +551,17 @@
             charts.storeComparison = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: stores.map(s => `門市 ${s}`),
+                    labels: stores,
                     datasets: [
                         {
-                            label: '25Q4',
+                            label: `25Q4 (W1-W${comparableWeeks})`,
                             data: rev25Q4,
                             backgroundColor: 'rgba(248, 113, 113, 0.7)',
                             borderColor: '#f87171',
                             borderWidth: 2
                         },
                         {
-                            label: '26Q1',
+                            label: `26Q1 (W1-W${comparableWeeks})`,
                             data: rev26Q1,
                             backgroundColor: 'rgba(102, 126, 234, 0.7)',
                             borderColor: '#667eea',
@@ -732,7 +590,7 @@
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
-                                    return '$' + (value / 1000000).toFixed(1) + 'M';
+                                    return '$' + value.toLocaleString();
                                 }
                             }
                         }
@@ -742,54 +600,82 @@
         }
         
         function populateFilters() {
-            const storeFilter = document.getElementById('storeFilter');
-            const classFilter = document.getElementById('classFilter');
+            const storeButtons = document.getElementById('storeButtons');
+            const classButtons = document.getElementById('classButtons');
             
-            // 清空現有選項
-            storeFilter.innerHTML = '<option value="all">全部門市</option>';
-            classFilter.innerHTML = '<option value="all">全部品項</option>';
-            
-            // 添加門市選項
+            // 創建門市按鈕
+            storeButtons.innerHTML = '<button class="quick-btn active" onclick="selectStore(\'all\')">全部</button>';
             data25Q4.stores.forEach(store => {
-                const option = document.createElement('option');
-                option.value = store;
-                option.textContent = `門市 ${store}`;
-                storeFilter.appendChild(option);
+                const btn = document.createElement('button');
+                btn.className = 'quick-btn';
+                btn.textContent = store;
+                btn.onclick = () => selectStore(store);
+                storeButtons.appendChild(btn);
             });
             
-            // 添加品項選項
+            // 創建品項按鈕
+            classButtons.innerHTML = '<button class="quick-btn active" onclick="selectClass(\'all\')">全部</button>';
             data25Q4.classes.forEach(cls => {
-                const option = document.createElement('option');
-                option.value = cls;
-                option.textContent = cls;
-                classFilter.appendChild(option);
+                const btn = document.createElement('button');
+                btn.className = 'quick-btn';
+                btn.textContent = cls;
+                btn.onclick = () => selectClass(cls);
+                classButtons.appendChild(btn);
+            });
+            
+            updateFilteredCharts();
+        }
+        
+        function selectStore(store) {
+            selectedStore = store;
+            
+            // 更新按鈕樣式
+            document.querySelectorAll('#storeButtons .quick-btn').forEach(btn => {
+                if ((store === 'all' && btn.textContent === '全部') || btn.textContent == store) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            updateFilteredCharts();
+        }
+        
+        function selectClass(cls) {
+            selectedClass = cls;
+            
+            // 更新按鈕樣式
+            document.querySelectorAll('#classButtons .quick-btn').forEach(btn => {
+                if ((cls === 'all' && btn.textContent === '全部') || btn.textContent === cls) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
             });
             
             updateFilteredCharts();
         }
         
         function updateFilteredCharts() {
-            const storeFilter = document.getElementById('storeFilter').value;
-            const classFilter = document.getElementById('classFilter').value;
-            
+            const comparableWeeks = getComparableWeeks();
             const ctx = document.getElementById('filteredChart').getContext('2d');
             
-            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
+            const weeks = Array.from({length: comparableWeeks}, (_, i) => `W${i + 1}`);
             const qty25Q4 = [];
             const qty26Q1 = [];
             
-            for (let i = 1; i <= 13; i++) {
+            for (let i = 1; i <= comparableWeeks; i++) {
                 let filtered25Q4 = data25Q4.data.filter(d => d.weekNum === i);
                 let filtered26Q1 = data26Q1.data.filter(d => d.weekNum === i);
                 
-                if (storeFilter !== 'all') {
-                    filtered25Q4 = filtered25Q4.filter(d => d.store == storeFilter);
-                    filtered26Q1 = filtered26Q1.filter(d => d.store == storeFilter);
+                if (selectedStore !== 'all') {
+                    filtered25Q4 = filtered25Q4.filter(d => d.store == selectedStore);
+                    filtered26Q1 = filtered26Q1.filter(d => d.store == selectedStore);
                 }
                 
-                if (classFilter !== 'all') {
-                    filtered25Q4 = filtered25Q4.filter(d => d.class === classFilter);
-                    filtered26Q1 = filtered26Q1.filter(d => d.class === classFilter);
+                if (selectedClass !== 'all') {
+                    filtered25Q4 = filtered25Q4.filter(d => d.class === selectedClass);
+                    filtered26Q1 = filtered26Q1.filter(d => d.class === selectedClass);
                 }
                 
                 const sum25Q4 = filtered25Q4.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
@@ -813,8 +699,21 @@
                             backgroundColor: 'rgba(248, 113, 113, 0.1)',
                             tension: 0.4,
                             fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            borderWidth: 3,
+                            datalabels: {
+                                align: 'top',
+                                offset: 8,
+                                color: '#f87171',
+                                font: {
+                                    weight: 'bold',
+                                    size: 11
+                                },
+                                formatter: function(value) {
+                                    return value > 0 ? value.toLocaleString() : '';
+                                }
+                            }
                         },
                         {
                             label: '26Q1',
@@ -823,8 +722,21 @@
                             backgroundColor: 'rgba(102, 126, 234, 0.1)',
                             tension: 0.4,
                             fill: true,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            borderWidth: 3,
+                            datalabels: {
+                                align: 'bottom',
+                                offset: 8,
+                                color: '#667eea',
+                                font: {
+                                    weight: 'bold',
+                                    size: 11
+                                },
+                                formatter: function(value) {
+                                    return value > 0 ? value.toLocaleString() : '';
+                                }
+                            }
                         }
                     ]
                 },
@@ -834,7 +746,12 @@
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'top'
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -861,20 +778,19 @@
         }
         
         function calculateSummary() {
-            const storeFilter = document.getElementById('storeFilter').value;
-            const classFilter = document.getElementById('classFilter').value;
+            const comparableWeeks = getComparableWeeks();
             
-            let filtered25Q4 = data25Q4.data;
-            let filtered26Q1 = data26Q1.data;
+            let filtered25Q4 = data25Q4.data.filter(d => d.weekNum <= comparableWeeks);
+            let filtered26Q1 = data26Q1.data.filter(d => d.weekNum <= comparableWeeks);
             
-            if (storeFilter !== 'all') {
-                filtered25Q4 = filtered25Q4.filter(d => d.store == storeFilter);
-                filtered26Q1 = filtered26Q1.filter(d => d.store == storeFilter);
+            if (selectedStore !== 'all') {
+                filtered25Q4 = filtered25Q4.filter(d => d.store == selectedStore);
+                filtered26Q1 = filtered26Q1.filter(d => d.store == selectedStore);
             }
             
-            if (classFilter !== 'all') {
-                filtered25Q4 = filtered25Q4.filter(d => d.class === classFilter);
-                filtered26Q1 = filtered26Q1.filter(d => d.class === classFilter);
+            if (selectedClass !== 'all') {
+                filtered25Q4 = filtered25Q4.filter(d => d.class === selectedClass);
+                filtered26Q1 = filtered26Q1.filter(d => d.class === selectedClass);
             }
             
             const totalQty25Q4 = filtered25Q4.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
@@ -889,26 +805,26 @@
             
             const summaryHTML = `
                 <div class="summary-card">
-                    <h3>25Q4 總銷量</h3>
+                    <h3>25Q4 總銷量 (W1-W${comparableWeeks})</h3>
                     <div class="value">${totalQty25Q4.toLocaleString()}</div>
                     <div>件</div>
                 </div>
                 <div class="summary-card">
-                    <h3>26Q1 總銷量</h3>
+                    <h3>26Q1 總銷量 (W1-W${comparableWeeks})</h3>
                     <div class="value">${totalQty26Q1.toLocaleString()}</div>
                     <div class="change ${qtyChange >= 0 ? 'positive' : 'negative'}">
                         ${qtyChange >= 0 ? '▲' : '▼'} ${Math.abs(qtyChange).toLocaleString()} 件 (${qtyChangePercent}%)
                     </div>
                 </div>
                 <div class="summary-card">
-                    <h3>25Q4 總業績</h3>
-                    <div class="value">$${(totalRev25Q4 / 1000000).toFixed(2)}M</div>
+                    <h3>25Q4 總業績 (W1-W${comparableWeeks})</h3>
+                    <div class="value">$${Math.round(totalRev25Q4).toLocaleString()}</div>
                 </div>
                 <div class="summary-card">
-                    <h3>26Q1 總業績</h3>
-                    <div class="value">$${(totalRev26Q1 / 1000000).toFixed(2)}M</div>
+                    <h3>26Q1 總業績 (W1-W${comparableWeeks})</h3>
+                    <div class="value">$${Math.round(totalRev26Q1).toLocaleString()}</div>
                     <div class="change ${revChange >= 0 ? 'positive' : 'negative'}">
-                        ${revChange >= 0 ? '▲' : '▼'} $${(Math.abs(revChange) / 1000000).toFixed(2)}M (${revChangePercent}%)
+                        ${revChange >= 0 ? '▲' : '▼'} $${Math.abs(Math.round(revChange)).toLocaleString()} (${revChangePercent}%)
                     </div>
                 </div>
             `;
