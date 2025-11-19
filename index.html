@@ -3,261 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iStore 銷售分析系統</title>
+    <title>季度銷售數據分析工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
             min-height: 100vh;
         }
-
+        
         .container {
             max-width: 1400px;
             margin: 0 auto;
         }
-
-        .header {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
+        
         h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-
-        .subtitle {
-            color: #666;
-            font-size: 14px;
-        }
-
+        
         .upload-section {
             background: white;
-            padding: 25px;
             border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-
-        .upload-area {
+        
+        .upload-box {
+            display: inline-block;
+            width: 48%;
+            margin-right: 2%;
+            padding: 20px;
             border: 3px dashed #667eea;
             border-radius: 10px;
-            padding: 40px;
             text-align: center;
-            transition: all 0.3s;
-            cursor: pointer;
-            background: #f8f9ff;
-        }
-
-        .upload-area:hover {
-            border-color: #764ba2;
-            background: #f0f2ff;
-        }
-
-        .upload-area.dragover {
-            border-color: #764ba2;
-            background: #e8ebff;
-            transform: scale(1.02);
-        }
-
-        .upload-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .btn {
-            padding: 12px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
             cursor: pointer;
             transition: all 0.3s;
-            font-weight: 600;
         }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        
+        .upload-box:last-child {
+            margin-right: 0;
         }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        
+        .upload-box:hover {
+            background: #f0f4ff;
+            border-color: #764ba2;
         }
-
-        .btn-secondary {
-            background: #e0e7ff;
+        
+        .upload-box h3 {
             color: #667eea;
-            margin-left: 10px;
+            margin-bottom: 10px;
         }
-
-        .file-list {
-            margin-top: 20px;
+        
+        .file-info {
+            margin-top: 10px;
+            color: #28a745;
+            font-weight: bold;
         }
-
-        .file-item {
-            background: #f8f9ff;
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        
+        input[type="file"] {
+            display: none;
         }
-
-        .file-item span {
-            font-size: 14px;
-            color: #333;
-        }
-
-        .file-item .remove-btn {
-            background: #ff4757;
-            color: white;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .controls {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .control-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .control-item {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .control-item label {
-            font-size: 14px;
-            color: #555;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-
-        .control-item select,
-        .control-item input {
-            padding: 10px;
-            border: 2px solid #e0e7ff;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        .control-item select:focus,
-        .control-item input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .results {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .results h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 22px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e7ff;
-        }
-
-        th {
+        
+        .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            font-weight: 600;
-            position: sticky;
-            top: 0;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.3s;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
-
-        tr:hover {
-            background: #f8f9ff;
+        
+        .btn:hover {
+            transform: scale(1.05);
         }
-
-        .chart-container {
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .chart-section {
             background: white;
-            padding: 25px;
             border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-
-        .chart-wrapper {
+        
+        .chart-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .chart-container {
             position: relative;
             height: 400px;
+            margin-bottom: 30px;
         }
-
-        .stat-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+        
+        .filters {
             margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
         }
-
-        .stat-card {
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .filter-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .summary-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
-
-        .stat-card h3 {
-            font-size: 14px;
+        
+        .summary-card h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
             opacity: 0.9;
-            margin-bottom: 8px;
         }
-
-        .stat-card .value {
-            font-size: 28px;
+        
+        .summary-card .value {
+            font-size: 32px;
             font-weight: bold;
+            margin-bottom: 5px;
         }
-
+        
+        .summary-card .change {
+            font-size: 14px;
+        }
+        
+        .positive {
+            color: #4ade80;
+        }
+        
+        .negative {
+            color: #f87171;
+        }
+        
         .loading {
             text-align: center;
-            padding: 40px;
-            color: #667eea;
+            padding: 20px;
+            display: none;
         }
-
+        
+        .loading.active {
+            display: block;
+        }
+        
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
@@ -265,695 +208,713 @@
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin: 0 auto;
         }
-
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .error {
-            background: #ff4757;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .success {
-            background: #2ed573;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .number-cell {
-            text-align: right;
-            font-family: 'Courier New', monospace;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e0e7ff;
-        }
-
-        .tab {
-            padding: 12px 24px;
-            background: none;
-            border: none;
-            border-bottom: 3px solid transparent;
-            cursor: pointer;
-            font-size: 16px;
-            color: #666;
-            transition: all 0.3s;
-            font-weight: 600;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>📊 iStore 銷售分析系統</h1>
-            <p class="subtitle">強大的多週期銷售數據分析與視覺化工具</p>
-        </div>
-
+        <h1>📊 季度銷售數據分析工具</h1>
+        
         <div class="upload-section">
-            <h2 style="margin-bottom: 15px; color: #333;">步驟 1：上傳參照資料</h2>
-            <div class="upload-area" id="refUploadArea">
-                <div class="upload-icon">📋</div>
-                <p style="font-size: 16px; color: #666; margin-bottom: 10px;">
-                    拖放參照資料檔案到此處，或點擊選擇檔案
-                </p>
-                <p style="font-size: 14px; color: #999;">
-                    支援格式：立展參照資料Care.xlsx
-                </p>
-                <input type="file" id="refFileInput" accept=".xlsx,.xls">
-                <button class="btn btn-primary" onclick="document.getElementById('refFileInput').click()">
-                    選擇參照資料
-                </button>
+            <div class="upload-box" onclick="document.getElementById('file25Q4').click()">
+                <h3>📁 上傳 25Q4 檔案</h3>
+                <p>點擊選擇 Excel 檔案</p>
+                <div class="file-info" id="info25Q4"></div>
+                <input type="file" id="file25Q4" accept=".xlsx,.xls" onchange="handleFileUpload('25Q4', this)">
             </div>
-            <div id="refFileStatus" class="file-list"></div>
-        </div>
-
-        <div class="upload-section">
-            <h2 style="margin-bottom: 15px; color: #333;">步驟 2：上傳銷售報表</h2>
-            <div class="upload-area" id="salesUploadArea">
-                <div class="upload-icon">📁</div>
-                <p style="font-size: 16px; color: #666; margin-bottom: 10px;">
-                    拖放銷售報表到此處，或點擊選擇檔案
-                </p>
-                <p style="font-size: 14px; color: #999;">
-                    支援格式：.xls / .xlsx（可一次上傳多個）
-                </p>
-                <input type="file" id="salesFileInput" accept=".xlsx,.xls" multiple>
-                <button class="btn btn-primary" onclick="document.getElementById('salesFileInput').click()">
-                    選擇銷售報表
-                </button>
-                <button class="btn btn-secondary" onclick="clearSalesFiles()">清除所有</button>
+            
+            <div class="upload-box" onclick="document.getElementById('file26Q1').click()">
+                <h3>📁 上傳 26Q1 檔案</h3>
+                <p>點擊選擇 Excel 檔案</p>
+                <div class="file-info" id="info26Q1"></div>
+                <input type="file" id="file26Q1" accept=".xlsx,.xls" onchange="handleFileUpload('26Q1', this)">
             </div>
-            <div id="salesFileList" class="file-list"></div>
+            
+            <button class="btn" id="analyzeBtn" onclick="analyzeData()" disabled>開始分析</button>
         </div>
-
-        <div id="loadingSection" class="loading hidden">
+        
+        <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>正在處理數據...</p>
+            <p style="margin-top: 10px; color: white; font-size: 18px;">數據分析中...</p>
         </div>
-
-        <div id="analysisSection" class="hidden">
-            <div class="controls">
-                <h2 style="margin-bottom: 15px; color: #333;">分析控制面板</h2>
-                <div class="control-group">
-                    <div class="control-item">
-                        <label>選擇週期</label>
-                        <select id="periodSelect" multiple style="height: 120px;">
-                            <!-- 動態生成 -->
-                        </select>
-                    </div>
-                    <div class="control-item">
-                        <label>選擇區域</label>
-                        <select id="regionSelect">
-                            <option value="all">全社（所有區域）</option>
-                            <option value="north1">北一區</option>
-                            <option value="north2">北二區</option>
-                            <option value="central">中區</option>
-                            <option value="tainan">台南區</option>
-                            <option value="kaohsiung">高雄區</option>
-                            <option value="online">線上EC</option>
-                        </select>
-                    </div>
-                    <div class="control-item">
-                        <label>選擇店鋪</label>
-                        <select id="storeSelect">
-                            <option value="all">全部店鋪</option>
-                        </select>
-                    </div>
+        
+        <div class="results" id="results">
+            <div class="chart-section">
+                <h2>總銷量趨勢對比（週次）</h2>
+                <div class="chart-container">
+                    <canvas id="totalQtyChart"></canvas>
                 </div>
-                <button class="btn btn-primary" onclick="analyzeData()">
-                    🔍 開始分析
-                </button>
             </div>
-
-            <div id="resultsSection" class="hidden">
-                <div class="tabs">
-                    <button class="tab active" onclick="switchTab('summary')">📈 統計總覽</button>
-                    <button class="tab" onclick="switchTab('detail')">📊 詳細數據</button>
-                    <button class="tab" onclick="switchTab('chart')">📉 趨勢圖表</button>
+            
+            <div class="chart-section">
+                <h2>總業績趨勢對比（週次）</h2>
+                <div class="chart-container">
+                    <canvas id="totalRevenueChart"></canvas>
                 </div>
-
-                <div id="summaryTab" class="tab-content active">
-                    <div class="stat-cards" id="statCards"></div>
-                    <div class="results">
-                        <h2>大分類銷售統計</h2>
-                        <div id="summaryTable"></div>
+            </div>
+            
+            <div class="chart-section">
+                <h2>篩選分析</h2>
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>選擇門市：</label>
+                        <select id="storeFilter" onchange="updateFilteredCharts()">
+                            <option value="all">全部門市</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>選擇品項：</label>
+                        <select id="classFilter" onchange="updateFilteredCharts()">
+                            <option value="all">全部品項</option>
+                        </select>
                     </div>
                 </div>
-
-                <div id="detailTab" class="tab-content">
-                    <div class="results">
-                        <h2>各週期詳細數據</h2>
-                        <div id="detailTable"></div>
-                    </div>
+                
+                <div class="chart-container">
+                    <canvas id="filteredChart"></canvas>
                 </div>
-
-                <div id="chartTab" class="tab-content">
-                    <div class="chart-container">
-                        <h2>銷售數量趨勢圖</h2>
-                        <div class="chart-wrapper">
-                            <canvas id="qtyChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-container">
-                        <h2>銷售金額趨勢圖</h2>
-                        <div class="chart-wrapper">
-                            <canvas id="amtChart"></canvas>
-                        </div>
-                    </div>
+                
+                <div class="summary-cards" id="summaryCards"></div>
+            </div>
+            
+            <div class="chart-section">
+                <h2>品項銷量對比（25Q4 vs 26Q1）</h2>
+                <div class="chart-container">
+                    <canvas id="categoryComparisonChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-section">
+                <h2>門市業績對比（25Q4 vs 26Q1）</h2>
+                <div class="chart-container">
+                    <canvas id="storeComparisonChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // 全局變數
-        let refData = null;
-        let salesDataList = [];
-        let processedData = null;
-
-        // 店鋪結構定義
-        const REGIONS = {
-            north1: { name: '北一區', stores: [45, 47, 48] },
-            north2: { name: '北二區', stores: [51, 57, 61, 65] },
-            central: { name: '中區', stores: [75, 76, 77, 81, 84] },
-            tainan: { name: '台南區', stores: [86, 88, 89, 97] },
-            kaohsiung: { name: '高雄區', stores: [115, 116, 117] },
-            online: { name: '線上EC', stores: [820, 821] }
-        };
-
-        // 大分類定義
-        const MAIN_CATEGORIES = ['CPU', 'iPad', 'iPhone', 'Apple Watch', 'AirPods', 'Care', 'Accy', 'Audio', '3rd Party'];
-
-        // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            setupDragAndDrop();
-            setupFileInputs();
-        });
-
-        // 設置拖放功能
-        function setupDragAndDrop() {
-            const refArea = document.getElementById('refUploadArea');
-            const salesArea = document.getElementById('salesUploadArea');
-
-            [refArea, salesArea].forEach(area => {
-                area.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    area.classList.add('dragover');
-                });
-
-                area.addEventListener('dragleave', () => {
-                    area.classList.remove('dragover');
-                });
-
-                area.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    area.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (area === refArea) {
-                        handleRefFile(files[0]);
-                    } else {
-                        handleSalesFiles(files);
-                    }
-                });
-            });
-        }
-
-        // 設置文件輸入
-        function setupFileInputs() {
-            document.getElementById('refFileInput').addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    handleRefFile(e.target.files[0]);
-                }
-            });
-
-            document.getElementById('salesFileInput').addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    handleSalesFiles(e.target.files);
-                }
-            });
-        }
-
-        // 處理參照資料
-        async function handleRefFile(file) {
-            try {
-                const data = await readExcelFile(file);
-                refData = data;
-                document.getElementById('refFileStatus').innerHTML = `
-                    <div class="success">
-                        ✅ 參照資料已載入：${file.name}（${data.length.toLocaleString()} 筆產品資料）
-                    </div>
-                `;
-            } catch (error) {
-                document.getElementById('refFileStatus').innerHTML = `
-                    <div class="error">
-                        ❌ 載入失敗：${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        // 處理銷售報表
-        async function handleSalesFiles(files) {
-            const fileList = document.getElementById('salesFileList');
-            
-            for (let file of files) {
-                try {
-                    const data = await readExcelFile(file);
-                    const fileName = file.name.replace('.xls', '').replace('.xlsx', '');
-                    
-                    salesDataList.push({
-                        name: fileName,
-                        data: data
-                    });
-
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'file-item';
-                    fileItem.innerHTML = `
-                        <span>📄 ${fileName}（${data.length.toLocaleString()} 筆資料）</span>
-                        <button class="remove-btn" onclick="removeSalesFile('${fileName}')">移除</button>
-                    `;
-                    fileList.appendChild(fileItem);
-                } catch (error) {
-                    console.error('讀取失敗:', file.name, error);
-                }
-            }
-
-            if (salesDataList.length > 0 && refData) {
-                document.getElementById('analysisSection').classList.remove('hidden');
-                updatePeriodSelect();
-            }
-        }
-
-        // 移除銷售檔案
-        function removeSalesFile(fileName) {
-            salesDataList = salesDataList.filter(item => item.name !== fileName);
-            updateFileList();
-        }
-
-        // 清除所有銷售檔案
-        function clearSalesFiles() {
-            salesDataList = [];
-            document.getElementById('salesFileList').innerHTML = '';
-            document.getElementById('analysisSection').classList.add('hidden');
-        }
-
-        // 更新檔案列表
-        function updateFileList() {
-            const fileList = document.getElementById('salesFileList');
-            fileList.innerHTML = '';
-            salesDataList.forEach(item => {
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-item';
-                fileItem.innerHTML = `
-                    <span>📄 ${item.name}（${item.data.length.toLocaleString()} 筆資料）</span>
-                    <button class="remove-btn" onclick="removeSalesFile('${item.name}')">移除</button>
-                `;
-                fileList.appendChild(fileItem);
-            });
-        }
-
-        // 更新週期選擇
-        function updatePeriodSelect() {
-            const select = document.getElementById('periodSelect');
-            select.innerHTML = '';
-            salesDataList.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.name;
-                option.textContent = item.name;
-                option.selected = true;
-                select.appendChild(option);
-            });
-        }
-
-        // 讀取Excel文件
-        function readExcelFile(file) {
-            return new Promise((resolve, reject) => {
+        let data25Q4 = null;
+        let data26Q1 = null;
+        let charts = {};
+        
+        function handleFileUpload(quarter, input) {
+            const file = input.files[0];
+            if (file) {
+                document.getElementById(`info${quarter}`).textContent = `✓ ${file.name}`;
+                
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                        resolve(jsonData);
-                    } catch (error) {
-                        reject(error);
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                    
+                    if (quarter === '25Q4') {
+                        data25Q4 = parseExcelData(jsonData, '25Q4');
+                    } else {
+                        data26Q1 = parseExcelData(jsonData, '26Q1');
                     }
+                    
+                    checkReadyToAnalyze();
                 };
-                reader.onerror = reject;
                 reader.readAsArrayBuffer(file);
-            });
+            }
         }
-
-        // 分析數據
-        function analyzeData() {
-            if (!refData || salesDataList.length === 0) {
-                alert('請先上傳參照資料和銷售報表！');
-                return;
-            }
-
-            const selectedPeriods = Array.from(document.getElementById('periodSelect').selectedOptions).map(o => o.value);
-            const regionId = document.getElementById('regionSelect').value;
-            const storeId = document.getElementById('storeSelect').value;
-
-            if (selectedPeriods.length === 0) {
-                alert('請至少選擇一個週期！');
-                return;
-            }
-
-            document.getElementById('loadingSection').classList.remove('hidden');
-            document.getElementById('resultsSection').classList.add('hidden');
-
-            setTimeout(() => {
-                try {
-                    processedData = processData(selectedPeriods, regionId, storeId);
-                    displayResults(processedData);
-                    document.getElementById('loadingSection').classList.add('hidden');
-                    document.getElementById('resultsSection').classList.remove('hidden');
-                } catch (error) {
-                    alert('處理數據時發生錯誤：' + error.message);
-                    document.getElementById('loadingSection').classList.add('hidden');
+        
+        function parseExcelData(rawData, quarter) {
+            const result = {
+                weeks: [],
+                stores: new Set(),
+                classes: new Set(),
+                data: []
+            };
+            
+            // 解析13週的數據
+            for (let weekNum = 1; weekNum <= 13; weekNum++) {
+                const colOffset = (weekNum - 1) * 8;
+                const weekName = `${quarter}W${weekNum}`;
+                
+                // 獲取日期範圍（第3行，row index 2）
+                let dateRange = '';
+                if (rawData[2] && rawData[2][colOffset]) {
+                    dateRange = rawData[2][colOffset];
                 }
+                
+                result.weeks.push({
+                    name: weekName,
+                    dateRange: dateRange
+                });
+                
+                // 從第4行開始讀取數據（row index 3是標題，從4開始）
+                for (let row = 4; row < rawData.length; row++) {
+                    const rowData = rawData[row];
+                    if (!rowData || rowData.length === 0) continue;
+                    
+                    const store = rowData[colOffset];
+                    const classItem = rowData[colOffset + 1];
+                    const qty = rowData[colOffset + 2];
+                    const revenue = rowData[colOffset + 3];
+                    
+                    // 跳過空行和合計行
+                    if (!classItem || classItem.includes('合計')) continue;
+                    
+                    // 確保有門市和品項
+                    if (store && typeof store === 'number') {
+                        result.stores.add(store);
+                        result.classes.add(classItem);
+                        
+                        result.data.push({
+                            week: weekName,
+                            weekNum: weekNum,
+                            dateRange: dateRange,
+                            store: store,
+                            class: classItem,
+                            qty: qty || 0,
+                            revenue: revenue || 0
+                        });
+                    } else if (classItem && result.data.length > 0) {
+                        // 如果沒有門市編號，使用上一行的門市
+                        const lastStore = result.data[result.data.length - 1].store;
+                        result.stores.add(lastStore);
+                        result.classes.add(classItem);
+                        
+                        result.data.push({
+                            week: weekName,
+                            weekNum: weekNum,
+                            dateRange: dateRange,
+                            store: lastStore,
+                            class: classItem,
+                            qty: qty || 0,
+                            revenue: revenue || 0
+                        });
+                    }
+                }
+            }
+            
+            result.stores = Array.from(result.stores).sort((a, b) => a - b);
+            result.classes = Array.from(result.classes).sort();
+            
+            return result;
+        }
+        
+        function checkReadyToAnalyze() {
+            const btn = document.getElementById('analyzeBtn');
+            if (data25Q4 && data26Q1) {
+                btn.disabled = false;
+            }
+        }
+        
+        function analyzeData() {
+            document.getElementById('loading').classList.add('active');
+            
+            setTimeout(() => {
+                createAllCharts();
+                populateFilters();
+                calculateSummary();
+                
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('results').style.display = 'block';
+                
+                // 滾動到結果區域
+                document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
             }, 500);
         }
-
-        // 處理數據
-        function processData(selectedPeriods, regionId, storeId) {
-            // 建立產品分類對應表
-            const categoryMap = {};
-            refData.forEach(row => {
-                if (row.Code) {
-                    categoryMap[row.Code] = row['大分類'] || 'Unknown';
-                }
-            });
-
-            // 取得要分析的店鋪
-            let targetStores = [];
-            if (regionId === 'all') {
-                Object.values(REGIONS).forEach(region => {
-                    targetStores.push(...region.stores);
-                });
-            } else if (storeId === 'all') {
-                targetStores = REGIONS[regionId].stores;
-            } else {
-                targetStores = [parseInt(storeId)];
+        
+        function createAllCharts() {
+            // 總銷量趨勢
+            createTotalQtyChart();
+            
+            // 總業績趨勢
+            createTotalRevenueChart();
+            
+            // 品項對比
+            createCategoryComparisonChart();
+            
+            // 門市對比
+            createStoreComparisonChart();
+        }
+        
+        function createTotalQtyChart() {
+            const ctx = document.getElementById('totalQtyChart').getContext('2d');
+            
+            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
+            const qty25Q4 = [];
+            const qty26Q1 = [];
+            
+            for (let i = 1; i <= 13; i++) {
+                const sum25Q4 = data25Q4.data
+                    .filter(d => d.weekNum === i)
+                    .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                const sum26Q1 = data26Q1.data
+                    .filter(d => d.weekNum === i)
+                    .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                
+                qty25Q4.push(sum25Q4);
+                qty26Q1.push(sum26Q1);
             }
-
-            // 處理每個週期的數據
-            const results = [];
-            selectedPeriods.forEach(periodName => {
-                const salesItem = salesDataList.find(item => item.name === periodName);
-                if (!salesItem) return;
-
-                const periodData = {
-                    period: periodName,
-                    categories: {}
-                };
-
-                // 初始化分類
-                MAIN_CATEGORIES.forEach(cat => {
-                    periodData.categories[cat] = {
-                        qty: 0,
-                        amt: 0,
-                        cost: 0,
-                        adj: 0
-                    };
-                });
-
-                // 統計數據
-                salesItem.data.forEach(row => {
-                    if (!targetStores.includes(row.store_code_id)) return;
-
-                    const category = categoryMap[row.product_code] || 'Unknown';
-                    if (!MAIN_CATEGORIES.includes(category)) return;
-
-                    periodData.categories[category].qty += row.total_qty || 0;
-                    periodData.categories[category].amt += row.total_amt_t1 || 0;
-                    periodData.categories[category].cost += row.total_cost || 0;
-                    periodData.categories[category].adj += row.total_ADJ_COST || 0;
-                });
-
-                results.push(periodData);
-            });
-
-            return results;
-        }
-
-        // 顯示結果
-        function displayResults(data) {
-            displayStatCards(data);
-            displaySummaryTable(data);
-            displayDetailTable(data);
-            displayCharts(data);
-        }
-
-        // 顯示統計卡片
-        function displayStatCards(data) {
-            const container = document.getElementById('statCards');
-            const totalQty = data.reduce((sum, period) => {
-                return sum + Object.values(period.categories).reduce((s, cat) => s + cat.qty, 0);
-            }, 0);
-            const totalAmt = data.reduce((sum, period) => {
-                return sum + Object.values(period.categories).reduce((s, cat) => s + cat.amt, 0);
-            }, 0);
-
-            container.innerHTML = `
-                <div class="stat-card">
-                    <h3>總銷售數量</h3>
-                    <div class="value">${totalQty.toLocaleString()}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>總銷售金額</h3>
-                    <div class="value">$${(totalAmt / 1000).toFixed(0)}K</div>
-                </div>
-                <div class="stat-card">
-                    <h3>分析週期數</h3>
-                    <div class="value">${data.length}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>產品分類</h3>
-                    <div class="value">${MAIN_CATEGORIES.length}</div>
-                </div>
-            `;
-        }
-
-        // 顯示摘要表格
-        function displaySummaryTable(data) {
-            const container = document.getElementById('summaryTable');
             
-            // 計算各分類總計
-            const summary = {};
-            MAIN_CATEGORIES.forEach(cat => {
-                summary[cat] = { qty: 0, amt: 0, profit: 0 };
-            });
-
-            data.forEach(period => {
-                Object.entries(period.categories).forEach(([cat, values]) => {
-                    summary[cat].qty += values.qty;
-                    summary[cat].amt += values.amt;
-                    summary[cat].profit += (values.amt - values.cost + values.adj);
-                });
-            });
-
-            let html = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>大分類</th>
-                            <th class="number-cell">總銷售數量</th>
-                            <th class="number-cell">總銷售金額</th>
-                            <th class="number-cell">毛利額</th>
-                            <th class="number-cell">毛利率</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            Object.entries(summary).forEach(([cat, values]) => {
-                const profitRate = values.amt > 0 ? (values.profit / values.amt * 100) : 0;
-                html += `
-                    <tr>
-                        <td><strong>${cat}</strong></td>
-                        <td class="number-cell">${values.qty.toLocaleString()}</td>
-                        <td class="number-cell">$${values.amt.toLocaleString('zh-TW', {maximumFractionDigits: 0})}</td>
-                        <td class="number-cell">$${values.profit.toLocaleString('zh-TW', {maximumFractionDigits: 0})}</td>
-                        <td class="number-cell">${profitRate.toFixed(2)}%</td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html;
-        }
-
-        // 顯示詳細表格
-        function displayDetailTable(data) {
-            const container = document.getElementById('detailTable');
+            if (charts.totalQty) charts.totalQty.destroy();
             
-            let html = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>週期</th>
-                            ${MAIN_CATEGORIES.map(cat => `<th class="number-cell">${cat}<br>數量</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            data.forEach(period => {
-                html += `<tr><td><strong>${period.period}</strong></td>`;
-                MAIN_CATEGORIES.forEach(cat => {
-                    const qty = period.categories[cat]?.qty || 0;
-                    html += `<td class="number-cell">${qty.toLocaleString()}</td>`;
-                });
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html;
-        }
-
-        // 顯示圖表
-        function displayCharts(data) {
-            const labels = data.map(d => d.period);
-            
-            // 數量圖表
-            const qtyDatasets = MAIN_CATEGORIES.map((cat, index) => ({
-                label: cat,
-                data: data.map(d => d.categories[cat]?.qty || 0),
-                borderColor: getColor(index),
-                backgroundColor: getColor(index, 0.1),
-                borderWidth: 2,
-                tension: 0.4
-            }));
-
-            const qtyCtx = document.getElementById('qtyChart');
-            if (window.qtyChart) window.qtyChart.destroy();
-            window.qtyChart = new Chart(qtyCtx, {
+            charts.totalQty = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
-                    datasets: qtyDatasets
+                    labels: weeks,
+                    datasets: [
+                        {
+                            label: '25Q4 銷量',
+                            data: qty25Q4,
+                            borderColor: '#f87171',
+                            backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: '26Q1 銷量',
+                            data: qty26Q1,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top' },
-                        title: { display: false }
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 件';
+                                }
+                            }
+                        }
                     },
                     scales: {
-                        y: { beginAtZero: true }
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        }
                     }
                 }
             });
-
-            // 金額圖表
-            const amtDatasets = MAIN_CATEGORIES.map((cat, index) => ({
-                label: cat,
-                data: data.map(d => d.categories[cat]?.amt || 0),
-                borderColor: getColor(index),
-                backgroundColor: getColor(index, 0.1),
-                borderWidth: 2,
-                tension: 0.4
-            }));
-
-            const amtCtx = document.getElementById('amtChart');
-            if (window.amtChart) window.amtChart.destroy();
-            window.amtChart = new Chart(amtCtx, {
+        }
+        
+        function createTotalRevenueChart() {
+            const ctx = document.getElementById('totalRevenueChart').getContext('2d');
+            
+            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
+            const rev25Q4 = [];
+            const rev26Q1 = [];
+            
+            for (let i = 1; i <= 13; i++) {
+                const sum25Q4 = data25Q4.data
+                    .filter(d => d.weekNum === i)
+                    .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
+                const sum26Q1 = data26Q1.data
+                    .filter(d => d.weekNum === i)
+                    .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
+                
+                rev25Q4.push(Math.round(sum25Q4));
+                rev26Q1.push(Math.round(sum26Q1));
+            }
+            
+            if (charts.totalRevenue) charts.totalRevenue.destroy();
+            
+            charts.totalRevenue = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
-                    datasets: amtDatasets
+                    labels: weeks,
+                    datasets: [
+                        {
+                            label: '25Q4 業績',
+                            data: rev25Q4,
+                            borderColor: '#f87171',
+                            backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: '26Q1 業績',
+                            data: rev26Q1,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top' },
-                        title: { display: false }
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
                     },
                     scales: {
-                        y: { beginAtZero: true }
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
                     }
                 }
             });
         }
-
-        // 取得顏色
-        function getColor(index, alpha = 1) {
-            const colors = [
-                `rgba(102, 126, 234, ${alpha})`,
-                `rgba(118, 75, 162, ${alpha})`,
-                `rgba(237, 100, 166, ${alpha})`,
-                `rgba(255, 71, 87, ${alpha})`,
-                `rgba(46, 213, 115, ${alpha})`,
-                `rgba(0, 184, 148, ${alpha})`,
-                `rgba(255, 177, 66, ${alpha})`,
-                `rgba(253, 121, 168, ${alpha})`,
-                `rgba(99, 110, 250, ${alpha})`
-            ];
-            return colors[index % colors.length];
-        }
-
-        // 切換標籤
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        function createCategoryComparisonChart() {
+            const ctx = document.getElementById('categoryComparisonChart').getContext('2d');
             
-            event.target.classList.add('active');
-            document.getElementById(tabName + 'Tab').classList.add('active');
-        }
-
-        // 區域改變時更新店鋪選項
-        document.getElementById('regionSelect').addEventListener('change', function() {
-            const regionId = this.value;
-            const storeSelect = document.getElementById('storeSelect');
-            storeSelect.innerHTML = '<option value="all">全部店鋪</option>';
+            const categories = [...data25Q4.classes];
+            const qty25Q4 = [];
+            const qty26Q1 = [];
             
-            if (regionId !== 'all') {
-                REGIONS[regionId].stores.forEach(storeId => {
-                    const option = document.createElement('option');
-                    option.value = storeId;
-                    option.textContent = `店鋪 ${storeId}`;
-                    storeSelect.appendChild(option);
-                });
+            categories.forEach(cat => {
+                const sum25Q4 = data25Q4.data
+                    .filter(d => d.class === cat)
+                    .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                const sum26Q1 = data26Q1.data
+                    .filter(d => d.class === cat)
+                    .reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                
+                qty25Q4.push(sum25Q4);
+                qty26Q1.push(sum26Q1);
+            });
+            
+            if (charts.categoryComparison) charts.categoryComparison.destroy();
+            
+            charts.categoryComparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categories,
+                    datasets: [
+                        {
+                            label: '25Q4',
+                            data: qty25Q4,
+                            backgroundColor: 'rgba(248, 113, 113, 0.7)',
+                            borderColor: '#f87171',
+                            borderWidth: 2
+                        },
+                        {
+                            label: '26Q1',
+                            data: qty26Q1,
+                            backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                            borderColor: '#667eea',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 件';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createStoreComparisonChart() {
+            const ctx = document.getElementById('storeComparisonChart').getContext('2d');
+            
+            const stores = [...data25Q4.stores];
+            const rev25Q4 = [];
+            const rev26Q1 = [];
+            
+            stores.forEach(store => {
+                const sum25Q4 = data25Q4.data
+                    .filter(d => d.store === store)
+                    .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
+                const sum26Q1 = data26Q1.data
+                    .filter(d => d.store === store)
+                    .reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
+                
+                rev25Q4.push(Math.round(sum25Q4));
+                rev26Q1.push(Math.round(sum26Q1));
+            });
+            
+            if (charts.storeComparison) charts.storeComparison.destroy();
+            
+            charts.storeComparison = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: stores.map(s => `門市 ${s}`),
+                    datasets: [
+                        {
+                            label: '25Q4',
+                            data: rev25Q4,
+                            backgroundColor: 'rgba(248, 113, 113, 0.7)',
+                            borderColor: '#f87171',
+                            borderWidth: 2
+                        },
+                        {
+                            label: '26Q1',
+                            data: rev26Q1,
+                            backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                            borderColor: '#667eea',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function populateFilters() {
+            const storeFilter = document.getElementById('storeFilter');
+            const classFilter = document.getElementById('classFilter');
+            
+            // 清空現有選項
+            storeFilter.innerHTML = '<option value="all">全部門市</option>';
+            classFilter.innerHTML = '<option value="all">全部品項</option>';
+            
+            // 添加門市選項
+            data25Q4.stores.forEach(store => {
+                const option = document.createElement('option');
+                option.value = store;
+                option.textContent = `門市 ${store}`;
+                storeFilter.appendChild(option);
+            });
+            
+            // 添加品項選項
+            data25Q4.classes.forEach(cls => {
+                const option = document.createElement('option');
+                option.value = cls;
+                option.textContent = cls;
+                classFilter.appendChild(option);
+            });
+            
+            updateFilteredCharts();
+        }
+        
+        function updateFilteredCharts() {
+            const storeFilter = document.getElementById('storeFilter').value;
+            const classFilter = document.getElementById('classFilter').value;
+            
+            const ctx = document.getElementById('filteredChart').getContext('2d');
+            
+            const weeks = Array.from({length: 13}, (_, i) => `W${i + 1}`);
+            const qty25Q4 = [];
+            const qty26Q1 = [];
+            
+            for (let i = 1; i <= 13; i++) {
+                let filtered25Q4 = data25Q4.data.filter(d => d.weekNum === i);
+                let filtered26Q1 = data26Q1.data.filter(d => d.weekNum === i);
+                
+                if (storeFilter !== 'all') {
+                    filtered25Q4 = filtered25Q4.filter(d => d.store == storeFilter);
+                    filtered26Q1 = filtered26Q1.filter(d => d.store == storeFilter);
+                }
+                
+                if (classFilter !== 'all') {
+                    filtered25Q4 = filtered25Q4.filter(d => d.class === classFilter);
+                    filtered26Q1 = filtered26Q1.filter(d => d.class === classFilter);
+                }
+                
+                const sum25Q4 = filtered25Q4.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                const sum26Q1 = filtered26Q1.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+                
+                qty25Q4.push(sum25Q4);
+                qty26Q1.push(sum26Q1);
             }
-        });
+            
+            if (charts.filtered) charts.filtered.destroy();
+            
+            charts.filtered = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: weeks,
+                    datasets: [
+                        {
+                            label: '25Q4',
+                            data: qty25Q4,
+                            borderColor: '#f87171',
+                            backgroundColor: 'rgba(248, 113, 113, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        },
+                        {
+                            label: '26Q1',
+                            data: qty26Q1,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' 件';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            calculateSummary();
+        }
+        
+        function calculateSummary() {
+            const storeFilter = document.getElementById('storeFilter').value;
+            const classFilter = document.getElementById('classFilter').value;
+            
+            let filtered25Q4 = data25Q4.data;
+            let filtered26Q1 = data26Q1.data;
+            
+            if (storeFilter !== 'all') {
+                filtered25Q4 = filtered25Q4.filter(d => d.store == storeFilter);
+                filtered26Q1 = filtered26Q1.filter(d => d.store == storeFilter);
+            }
+            
+            if (classFilter !== 'all') {
+                filtered25Q4 = filtered25Q4.filter(d => d.class === classFilter);
+                filtered26Q1 = filtered26Q1.filter(d => d.class === classFilter);
+            }
+            
+            const totalQty25Q4 = filtered25Q4.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+            const totalQty26Q1 = filtered26Q1.reduce((sum, d) => sum + (parseFloat(d.qty) || 0), 0);
+            const qtyChange = totalQty26Q1 - totalQty25Q4;
+            const qtyChangePercent = totalQty25Q4 > 0 ? ((qtyChange / totalQty25Q4) * 100).toFixed(1) : 0;
+            
+            const totalRev25Q4 = filtered25Q4.reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
+            const totalRev26Q1 = filtered26Q1.reduce((sum, d) => sum + (parseFloat(d.revenue) || 0), 0);
+            const revChange = totalRev26Q1 - totalRev25Q4;
+            const revChangePercent = totalRev25Q4 > 0 ? ((revChange / totalRev25Q4) * 100).toFixed(1) : 0;
+            
+            const summaryHTML = `
+                <div class="summary-card">
+                    <h3>25Q4 總銷量</h3>
+                    <div class="value">${totalQty25Q4.toLocaleString()}</div>
+                    <div>件</div>
+                </div>
+                <div class="summary-card">
+                    <h3>26Q1 總銷量</h3>
+                    <div class="value">${totalQty26Q1.toLocaleString()}</div>
+                    <div class="change ${qtyChange >= 0 ? 'positive' : 'negative'}">
+                        ${qtyChange >= 0 ? '▲' : '▼'} ${Math.abs(qtyChange).toLocaleString()} 件 (${qtyChangePercent}%)
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <h3>25Q4 總業績</h3>
+                    <div class="value">$${(totalRev25Q4 / 1000000).toFixed(2)}M</div>
+                </div>
+                <div class="summary-card">
+                    <h3>26Q1 總業績</h3>
+                    <div class="value">$${(totalRev26Q1 / 1000000).toFixed(2)}M</div>
+                    <div class="change ${revChange >= 0 ? 'positive' : 'negative'}">
+                        ${revChange >= 0 ? '▲' : '▼'} $${(Math.abs(revChange) / 1000000).toFixed(2)}M (${revChangePercent}%)
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('summaryCards').innerHTML = summaryHTML;
+        }
     </script>
 </body>
 </html>
