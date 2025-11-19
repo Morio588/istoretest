@@ -1,1949 +1,959 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>產品查找工具 - iStore 內部系統</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body { 
-      font-family: 'Inter', sans-serif; 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 20px;
-      color: #2d3748;
-    }
-
-    /* 登入頁面樣式 */
-    #loginPage {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 9999;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 20px;
-    }
-
-    .login-container {
-      max-width: 450px;
-      margin: 100px auto;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 24px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 50px 40px;
-      text-align: center;
-      animation: slideUp 0.6s ease-out;
-    }
-
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .login-logo {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-      border-radius: 20px;
-      margin: 0 auto 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 40px;
-      box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
-    }
-
-    .login-title {
-      font-size: 32px;
-      font-weight: 700;
-      color: #1e3a8a;
-      margin-bottom: 12px;
-    }
-
-    .login-subtitle {
-      font-size: 14px;
-      color: #6b7280;
-      margin-bottom: 40px;
-    }
-
-    .google-login-btn {
-      width: 100%;
-      padding: 16px 24px;
-      background: white;
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #374151;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .google-login-btn:hover {
-      background: #f9fafb;
-      border-color: #3b82f6;
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
-    }
-
-    .google-login-btn:active {
-      transform: translateY(0);
-    }
-
-    .google-login-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .google-icon {
-      width: 24px;
-      height: 24px;
-    }
-
-    .error-message {
-      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-      color: #dc2626;
-      padding: 12px 16px;
-      border-radius: 10px;
-      border: 1px solid #fecaca;
-      font-size: 14px;
-      margin-top: 20px;
-      display: none;
-    }
-
-    .loading-spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid #e5e7eb;
-      border-top: 3px solid #3b82f6;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    /* 主內容區域 */
-    #mainContent {
-      display: none;
-      width: 100%;
-    }
-
-    .container { 
-      max-width: 1400px; 
-      margin: 0 auto; 
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 24px; 
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      overflow: hidden;
-      animation: slideUp 0.6s ease-out;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-      padding: 40px 30px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .header::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-      animation: shimmer 4s ease-in-out infinite;
-    }
-
-    @keyframes shimmer {
-      0%, 100% { transform: rotate(0deg); }
-      50% { transform: rotate(180deg); }
-    }
-
-    .user-info {
-      position: absolute;
-      top: 20px;
-      right: 30px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: rgba(255, 255, 255, 0.15);
-      padding: 8px 16px;
-      border-radius: 12px;
-      backdrop-filter: blur(10px);
-      z-index: 10;
-    }
-
-    .user-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: 2px solid white;
-    }
-
-    .user-name {
-      color: white;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .logout-btn {
-      background: rgba(239, 68, 68, 0.9);
-      color: white;
-      border: none;
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .logout-btn:hover {
-      background: rgba(220, 38, 38, 1);
-      transform: translateY(-1px);
-    }
-
-    h1 { 
-      color: white;
-      font-size: 50px;
-      font-weight: 700;
-      margin-bottom: 12px;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      position: relative;
-      z-index: 1;
-    }
-
-    .divider { 
-      width: 120px;
-      height: 4px;
-      background: linear-gradient(90deg, #10b981, #3b82f6);
-      border: none;
-      border-radius: 2px;
-      margin: 0 auto 16px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .subtitle { 
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.8);
-      font-weight: 400;
-      position: relative;
-      z-index: 1;
-      margin-bottom: 20px;
-    }
-
-    .nav-menu {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .nav-btn {
-      padding: 12px 24px;
-      background: rgba(255, 255, 255, 0.2);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(10px);
-    }
-
-    .nav-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-      border-color: rgba(255, 255, 255, 0.5);
-      transform: translateY(-2px);
-    }
-
-    .nav-btn.active {
-      background: rgba(255, 255, 255, 0.9);
-      color: #1e3a8a;
-      border-color: rgba(255, 255, 255, 0.9);
-    }
-
-    .page {
-      display: none;
-    }
-
-    .page.active {
-      display: block;
-    }
-
-    .search-section {
-      padding: 40px 30px;
-      background: white;
-    }
-
-    .search-container {
-      max-width: 800px;
-      margin: 0 auto;
-      position: relative;
-    }
-
-    .search-row {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .search-input-wrapper {
-      flex: 1;
-      min-width: 300px;
-      position: relative;
-    }
-
-    .filter-select {
-      min-width: 150px;
-      padding: 18px 16px;
-      border: 2px solid #e5e7eb;
-      border-radius: 16px;
-      font-size: 16px;
-      font-weight: 500;
-      background: white;
-      color: #374151;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .filter-select:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), 0 10px 25px -5px rgba(59, 130, 246, 0.1);
-      transform: translateY(-2px);
-    }
-
-    .clear-filters {
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      font-size: 14px;
-    }
-
-    .clear-filters:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.3);
-    }
-
-    .filter-info {
-      margin-top: 12px;
-      padding: 8px 16px;
-      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-      border-radius: 8px;
-      font-size: 14px;
-      color: #1e40af;
-      text-align: center;
-      display: none;
-    }
-
-    /* 🆕 庫存狀態顯示 */
-    .inventory-status {
-      margin-top: 16px;
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-      border-radius: 12px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-size: 14px;
-      color: #065f46;
-      font-weight: 600;
-    }
-
-    .inventory-status.loaded {
-      display: flex;
-    }
-
-    .quick-filters {
-      margin-top: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .quick-filter-row {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .quick-filter-btn {
-      padding: 10px 20px;
-      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      color: #475569;
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .quick-filter-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      border-color: #3b82f6;
-    }
-
-    .quick-filter-btn.active {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      color: white;
-      border-color: #3b82f6;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    }
-
-    .quick-subcategory-btn {
-      padding: 8px 16px;
-      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-      border: 2px solid #fbbf24;
-      border-radius: 10px;
-      color: #92400e;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-      white-space: nowrap;
-    }
-
-    .quick-subcategory-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      border-color: #f59e0b;
-    }
-
-    .quick-subcategory-btn.active {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      color: white;
-      border-color: #f59e0b;
-      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    }
-
-    .quick-filter-label {
-      font-size: 12px;
-      color: #6b7280;
-      font-weight: 500;
-      min-width: 80px;
-    }
-
-    #quickSubcategoryButtons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-    }
-
-    #quickSubcategoryRow {
-      display: none;
-    }
-
-    #quickSubcategoryRow.active {
-      display: flex;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #9ca3af;
-      z-index: 2;
-    }
-
-    #searchInput { 
-      width: 100%;
-      padding: 18px 24px 18px 56px;
-      border: 2px solid #e5e7eb;
-      border-radius: 16px;
-      font-size: 16px;
-      font-weight: 500;
-      background: white;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    #searchInput:focus { 
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), 0 10px 25px -5px rgba(59, 130, 246, 0.1);
-      transform: translateY(-2px);
-    }
-
-    #searchInput::placeholder {
-      color: #9ca3af;
-      font-weight: 400;
-    }
-
-    .table-section {
-      padding: 0 30px 40px;
-      background: white;
-    }
-
-    .table-container { 
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-      border: 1px solid #e5e7eb;
-    }
-
-    table { 
-      border-collapse: collapse; 
-      width: 100%; 
-      background: white;
-    }
-
-    th, td { 
-      padding: 16px 20px;
-      text-align: left; 
-      font-size: 14px;
-      border-bottom: 1px solid #f1f5f9;
-    }
-
-    th { 
-      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-      color: #475569;
-      font-weight: 600;
-      position: sticky; 
-      top: 0; 
-      z-index: 1;
-      text-transform: uppercase;
-      font-size: 14px;
-      letter-spacing: 0.05em;
-    }
-
-    tbody tr { 
-      transition: all 0.2s ease;
-    }
-
-    tbody tr:nth-child(even) { 
-      background-color: #fafbfc;
-    }
-
-    tbody tr:hover { 
-      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-      transform: scale(1.01);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-    }
-
-    tbody td {
-      font-weight: 500;
-      color: #374151;
-    }
-
-    tbody td:first-child {
-      font-weight: 600;
-      color: #1e40af;
-      font-size: 15px;
-    }
-
-    tbody td:nth-child(2) {
-      font-family: 'Monaco', 'Menlo', monospace;
-      color: #059669;
-      font-size: 13px;
-    }
-
-    /* 🆕 庫存欄位樣式 */
-    .stock-cell {
-      font-weight: 700;
-      font-size: 15px;
-      text-align: center;
-    }
-
-    .stock-available {
-      color: #10b981;
-    }
-
-    .stock-low {
-      color: #f59e0b;
-    }
-
-    .stock-out {
-      color: #ef4444;
-    }
-
-    .stock-unknown {
-      color: #9ca3af;
-      font-weight: 400;
-    }
-
-    .no-results { 
-      text-align: center; 
-      padding: 60px 20px;
-      color: #6b7280;
-      font-size: 18px;
-      font-weight: 500;
-    }
-
-    .no-results::before {
-      content: '🔍';
-      display: block;
-      font-size: 48px;
-      margin-bottom: 16px;
-      opacity: 0.5;
-    }
-
-    .error { 
-      background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-      color: #dc2626;
-      padding: 16px 20px;
-      margin: 20px 30px;
-      border-radius: 12px;
-      border: 1px solid #fecaca;
-      font-weight: 500;
-    }
-
-    .content-page {
-      padding: 40px 30px;
-      background: white;
-      min-height: 400px;
-    }
-
-    .content-wrapper {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    .page-title {
-      text-align: center;
-      font-size: 32px;
-      font-weight: 700;
-      color: #1e3a8a;
-      margin-bottom: 30px;
-    }
-
-    .image-gallery {
-      display: flex;
-      flex-direction: column;
-      gap: 30px;
-      margin-top: 30px;
-    }
-
-    .image-card {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-      border: 1px solid #e5e7eb;
-      overflow: hidden;
-      transition: all 0.3s ease;
-      max-width: 800px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .image-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
-    }
-
-    .image-placeholder {
-      width: 100%;
-      height: auto;
-      min-height: 300px;
-      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #64748b;
-      font-size: 16px;
-      font-weight: 500;
-      padding: 20px;
-    }
-
-    .image-card img {
-      width: 100%;
-      height: auto;
-      object-fit: contain;
-      border-radius: 8px;
-      padding: 20px;
-      background: white;
-    }
-
-    .image-card-content {
-      padding: 20px;
-    }
-
-    .image-card-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #1e40af;
-      margin-bottom: 8px;
-    }
-
-    .image-card-description {
-      color: #6b7280;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    .footer {
-      text-align: center;
-      padding: 20px;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 12px;
-      font-weight: 400;
-    }
-
-    @media (max-width: 768px) { 
-      .login-container {
-        margin: 50px auto;
-        padding: 40px 30px;
-      }
-
-      .container {
-        margin: 10px;
-        border-radius: 16px;
-      }
-      
-      h1 {
-        font-size: 38px;
-      }
-      
-      .header, .search-section, .table-section, .content-page {
-        padding: 24px 20px;
-      }
-
-      .user-info {
-        position: static;
-        margin-bottom: 20px;
-        justify-content: center;
-      }
-      
-      .nav-menu {
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-      }
-      
-      .nav-btn {
-        width: 200px;
-        text-align: center;
-      }
-      
-      .search-row {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      
-      .search-input-wrapper {
-        min-width: unset;
-      }
-      
-      .filter-select {
-        min-width: unset;
-      }
-
-      .quick-filter-row {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      
-      .quick-filter-label {
-        width: 100%;
-        text-align: center;
-        margin-bottom: 8px;
-      }
-      
-      .quick-filter-btn, .quick-subcategory-btn {
-        flex: 1;
-        min-width: 120px;
-      }
-      
-      #quickSubcategoryButtons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        justify-content: center;
-        width: 100%;
-      }
-      
-      #searchInput {
-        padding: 16px 20px 16px 48px;
-        font-size: 14px;
-      }
-      
-      th, td {
-        padding: 12px 16px;
-        font-size: 13px;
-      }
-      
-      .table-container {
-        overflow-x: auto;
-      }
-      
-      table {
-        min-width: 900px;
-      }
-
-      .page-title {
-        font-size: 24px;
-      }
-    }
-
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 60px;
-    }
-
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #e5e7eb;
-      border-top: 4px solid #3b82f6;
-      border-radius: 50%;
-      animation: spin2 1s linear infinite;
-    }
-
-    @keyframes spin2 {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iStore 銷售分析系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e7ff;
+            color: #667eea;
+            margin-left: 10px;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            background: #f8f9ff;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-item span {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .file-item .remove-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-item label {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .control-item select,
+        .control-item input {
+            padding: 10px;
+            border: 2px solid #e0e7ff;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .control-item select:focus,
+        .control-item input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .results {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .results h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e7ff;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            background: #ff4757;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #2ed573;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .number-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e7ff;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
-  <!-- 登入頁面 -->
-  <div id="loginPage">
-    <div class="login-container">
-      <div class="login-logo">🍎</div>
-      <h2 class="login-title">iStore 型號查找工具</h2>
-      <p class="login-subtitle">請使用 iStore 員工信箱登入</p>
-      
-      <button id="googleLoginBtn" class="google-login-btn">
-        <svg class="google-icon" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-        </svg>
-        使用 Google 帳號登入
-      </button>
-      
-      <div id="loginError" class="error-message"></div>
-    </div>
-  </div>
-
-  <!-- 主內容 -->
-  <div id="mainContent">
     <div class="container">
-      <div class="header">
-        <div id="userInfo" class="user-info">
-          <img id="userAvatar" class="user-avatar" src="" alt="User Avatar">
-          <span id="userName" class="user-name"></span>
-          <button id="logoutBtn" class="logout-btn">登出</button>
-        </div>
-        
-        <h1>產品查找工具</h1>
-        <div class="divider"></div>
-        <p class="subtitle">僅限 iStore 內部員工使用</p>
-        
-        <div class="nav-menu">
-          <button class="nav-btn active" data-page="search">產品搜尋</button>
-          <button class="nav-btn" data-page="education">教育價</button>
-          <button class="nav-btn" data-page="care">CARE 保險</button>
-        </div>
-      </div>
-
-      <!-- 產品搜尋頁面 -->
-      <div id="searchPage" class="page active">
-        <div class="search-section">
-          <div class="search-container">
-            <div class="search-row">
-              <div class="search-input-wrapper">
-                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <path d="m21 21-4.35-4.35"></path>
-                </svg>
-                <input type="text" id="searchInput" placeholder="輸入產品名稱、代碼或分類關鍵字進行搜尋...">
-              </div>
-              
-              <select id="categoryFilter" class="filter-select">
-                <option value="">所有大分類</option>
-              </select>
-              
-              <select id="subcategoryFilter" class="filter-select">
-                <option value="">所有中分類</option>
-              </select>
-              
-              <button id="clearFilters" class="clear-filters">清除篩選</button>
-            </div>
-            
-            <div id="filterInfo" class="filter-info"></div>
-            
-            <!-- 🆕 庫存狀態提示 -->
-            <div id="inventoryStatus" class="inventory-status">
-              <span>✅ 庫存資料已載入</span>
-              <span id="inventoryUpdateTime"></span>
-            </div>
-            
-            <div class="quick-filters">
-              <div class="quick-filter-row">
-                <div class="quick-filter-label">大分類：</div>
-                <button class="quick-filter-btn" data-category="CPU">CPU</button>
-                <button class="quick-filter-btn" data-category="iPad">iPad</button>
-                <button class="quick-filter-btn" data-category="iPhone">iPhone</button>
-                <button class="quick-filter-btn" data-category="Apple Watch">Apple Watch</button>
-              </div>
-              
-              <div class="quick-filter-row" id="quickSubcategoryRow">
-                <div class="quick-filter-label">中分類：</div>
-                <div id="quickSubcategoryButtons"></div>
-              </div>
-            </div>
-          </div>
+        <div class="header">
+            <h1>📊 iStore 銷售分析系統</h1>
+            <p class="subtitle">強大的多週期銷售數據分析與視覺化工具</p>
         </div>
 
-        <div id="errorInfo" class="error" style="display: none;"></div>
-
-        <div class="table-section">
-          <div class="table-container">
-            <table id="resultTable">
-              <thead>
-                <tr>
-                  <th>型號</th>
-                  <th>Code</th>
-                  <th>產品名稱</th>
-                  <th>大分類</th>
-                  <th>中分類</th>
-                  <th>小分類</th>
-                  <th id="totalStockHeader" style="display: none;">總庫存</th>
-                  <th id="stockHeader" style="display: none;">
-                    庫存
-                    <select id="storeSelector" style="display: block; margin-top: 4px; padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 12px; background: white; cursor: pointer;">
-                      <option value="75">75</option>
-                    </select>
-                  </th>
-                  <th>備註</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colspan="9" class="loading">
-                    <div class="spinner"></div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="upload-section">
+            <h2 style="margin-bottom: 15px; color: #333;">步驟 1：上傳參照資料</h2>
+            <div class="upload-area" id="refUploadArea">
+                <div class="upload-icon">📋</div>
+                <p style="font-size: 16px; color: #666; margin-bottom: 10px;">
+                    拖放參照資料檔案到此處，或點擊選擇檔案
+                </p>
+                <p style="font-size: 14px; color: #999;">
+                    支援格式：立展參照資料Care.xlsx
+                </p>
+                <input type="file" id="refFileInput" accept=".xlsx,.xls">
+                <button class="btn btn-primary" onclick="document.getElementById('refFileInput').click()">
+                    選擇參照資料
+                </button>
+            </div>
+            <div id="refFileStatus" class="file-list"></div>
         </div>
-      </div>
 
-      <!-- 教育價頁面 -->
-      <div id="educationPage" class="page content-page">
-        <div class="content-wrapper">
-          <h2 class="page-title">教育價格資訊</h2>
-          
-          <div class="image-gallery">
-            <div class="image-card">
-              <img src="images/mac-education-price.jpg" alt="Mac 教育價格表" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-              <div class="image-placeholder" style="display: none;">Mac 教育價格表</div>
-              <div class="image-card-content">
-                <div class="image-card-title">MacBook 教育優惠</div>
-                <div class="image-card-description">適用於學生、教師和教育機構的 MacBook 系列特殊優惠價格</div>
-              </div>
+        <div class="upload-section">
+            <h2 style="margin-bottom: 15px; color: #333;">步驟 2：上傳銷售報表</h2>
+            <div class="upload-area" id="salesUploadArea">
+                <div class="upload-icon">📁</div>
+                <p style="font-size: 16px; color: #666; margin-bottom: 10px;">
+                    拖放銷售報表到此處，或點擊選擇檔案
+                </p>
+                <p style="font-size: 14px; color: #999;">
+                    支援格式：.xls / .xlsx（可一次上傳多個）
+                </p>
+                <input type="file" id="salesFileInput" accept=".xlsx,.xls" multiple>
+                <button class="btn btn-primary" onclick="document.getElementById('salesFileInput').click()">
+                    選擇銷售報表
+                </button>
+                <button class="btn btn-secondary" onclick="clearSalesFiles()">清除所有</button>
             </div>
-
-            <div class="image-card">
-              <img src="images/ipad-education-price.jpg" alt="iPad 教育價格表" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-              <div class="image-placeholder" style="display: none;">iPad 教育價格表</div>
-              <div class="image-card-content">
-                <div class="image-card-title">iPad 教育優惠</div>
-                <div class="image-card-description">iPad 系列產品的教育機構專屬價格資訊</div>
-              </div>
-            </div>
-
-            <div class="image-card">
-              <img src="images/accessories-education-price.jpg" alt="配件教育價格表" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-              <div class="image-placeholder" style="display: none;">配件教育價格表</div>
-              <div class="image-card-content">
-                <div class="image-card-title">配件教育優惠</div>
-                <div class="image-card-description">Apple 配件產品的教育優惠價格，包含鍵盤、滑鼠、充電器等</div>
-              </div>
-            </div>
-          </div>
+            <div id="salesFileList" class="file-list"></div>
         </div>
-      </div>
 
-      <!-- CARE 保險頁面 -->
-      <div id="carePage" class="page content-page">
-        <div class="content-wrapper">
-          <h2 class="page-title">CARE 保險資訊</h2>
-          
-          <div class="image-gallery">
-            <div class="image-card">
-              <img src="images/care-insurance.jpg" alt="CARE 保險方案" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-              <div class="image-placeholder" style="display: none;">CARE 保險方案</div>
-              <div class="image-card-content">
-                <div class="image-card-title">AppleCare+ 保險方案</div>
-                <div class="image-card-description">提供意外損壞保護和優先技術支援服務，讓您的 Apple 產品得到全方位保障</div>
-              </div>
-            </div>
-          </div>
+        <div id="loadingSection" class="loading hidden">
+            <div class="spinner"></div>
+            <p>正在處理數據...</p>
         </div>
-      </div>
+
+        <div id="analysisSection" class="hidden">
+            <div class="controls">
+                <h2 style="margin-bottom: 15px; color: #333;">分析控制面板</h2>
+                <div class="control-group">
+                    <div class="control-item">
+                        <label>選擇週期</label>
+                        <select id="periodSelect" multiple style="height: 120px;">
+                            <!-- 動態生成 -->
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>選擇區域</label>
+                        <select id="regionSelect">
+                            <option value="all">全社（所有區域）</option>
+                            <option value="north1">北一區</option>
+                            <option value="north2">北二區</option>
+                            <option value="central">中區</option>
+                            <option value="tainan">台南區</option>
+                            <option value="kaohsiung">高雄區</option>
+                            <option value="online">線上EC</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>選擇店鋪</label>
+                        <select id="storeSelect">
+                            <option value="all">全部店鋪</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="analyzeData()">
+                    🔍 開始分析
+                </button>
+            </div>
+
+            <div id="resultsSection" class="hidden">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('summary')">📈 統計總覽</button>
+                    <button class="tab" onclick="switchTab('detail')">📊 詳細數據</button>
+                    <button class="tab" onclick="switchTab('chart')">📉 趨勢圖表</button>
+                </div>
+
+                <div id="summaryTab" class="tab-content active">
+                    <div class="stat-cards" id="statCards"></div>
+                    <div class="results">
+                        <h2>大分類銷售統計</h2>
+                        <div id="summaryTable"></div>
+                    </div>
+                </div>
+
+                <div id="detailTab" class="tab-content">
+                    <div class="results">
+                        <h2>各週期詳細數據</h2>
+                        <div id="detailTable"></div>
+                    </div>
+                </div>
+
+                <div id="chartTab" class="tab-content">
+                    <div class="chart-container">
+                        <h2>銷售數量趨勢圖</h2>
+                        <div class="chart-wrapper">
+                            <canvas id="qtyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h2>銷售金額趨勢圖</h2>
+                        <div class="chart-wrapper">
+                            <canvas id="amtChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <footer class="footer">
-      <p>Created by Morio © 2025</p>
-    </footer>
-  </div>
+    <script>
+        // 全局變數
+        let refData = null;
+        let salesDataList = [];
+        let processedData = null;
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        // 店鋪結構定義
+        const REGIONS = {
+            north1: { name: '北一區', stores: [45, 47, 48] },
+            north2: { name: '北二區', stores: [51, 57, 61, 65] },
+            central: { name: '中區', stores: [75, 76, 77, 81, 84] },
+            tainan: { name: '台南區', stores: [86, 88, 89, 97] },
+            kaohsiung: { name: '高雄區', stores: [115, 116, 117] },
+            online: { name: '線上EC', stores: [820, 821] }
+        };
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyAQH0RqBBwRQthE7vj80cH994GFkEYU1ho",
-      authDomain: "istore-login-tc.firebaseapp.com",
-      projectId: "istore-login-tc",
-      storageBucket: "istore-login-tc.firebasestorage.app",
-      messagingSenderId: "709619679365",
-      appId: "1:709619679365:web:62a50024c61b54954129ec",
-      measurementId: "G-K6JHQ9RD4Y"
-    };
+        // 大分類定義
+        const MAIN_CATEGORIES = ['CPU', 'iPad', 'iPhone', 'Apple Watch', 'AirPods', 'Care', 'Accy', 'Audio', '3rd Party'];
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDragAndDrop();
+            setupFileInputs();
+        });
 
-    // 🔧 強制每次登入都重新選擇帳號（解決自動登入舊帳號問題）
-    provider.setCustomParameters({
-      hd: 'istore.com.tw',
-      prompt: 'select_account'  // 每次都顯示帳號選擇畫面
-    });
+        // 設置拖放功能
+        function setupDragAndDrop() {
+            const refArea = document.getElementById('refUploadArea');
+            const salesArea = document.getElementById('salesUploadArea');
 
-    function showLoginError(message) {
-      const errorDiv = document.getElementById('loginError');
-      errorDiv.textContent = message;
-      errorDiv.style.display = 'block';
-      setTimeout(() => {
-        errorDiv.style.display = 'none';
-      }, 5000);
-    }
+            [refArea, salesArea].forEach(area => {
+                area.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    area.classList.add('dragover');
+                });
 
-    document.getElementById('googleLoginBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('googleLoginBtn');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="loading-spinner"></span> 登入中...';
-      btn.disabled = true;
+                area.addEventListener('dragleave', () => {
+                    area.classList.remove('dragover');
+                });
 
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        if (!user.email.endsWith('@istore.com.tw')) {
-          await signOut(auth);
-          showLoginError('❌ 僅限 @istore.com.tw 員工信箱登入');
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-          return;
+                area.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    area.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (area === refArea) {
+                        handleRefFile(files[0]);
+                    } else {
+                        handleSalesFiles(files);
+                    }
+                });
+            });
         }
 
-        console.log('登入成功:', user.email);
-        
-      } catch (error) {
-        console.error('登入錯誤:', error);
-        
-        if (error.code === 'auth/popup-closed-by-user') {
-          showLoginError('登入已取消');
-        } else if (error.code === 'auth/unauthorized-domain') {
-          showLoginError('此網域尚未授權，請聯絡系統管理員');
-        } else {
-          showLoginError('登入失敗，請稍後再試');
-        }
-        
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-      }
-    });
+        // 設置文件輸入
+        function setupFileInputs() {
+            document.getElementById('refFileInput').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleRefFile(e.target.files[0]);
+                }
+            });
 
-    onAuthStateChanged(auth, (user) => {
-      if (user && user.email.endsWith('@istore.com.tw')) {
-        document.getElementById('loginPage').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-        
-        document.getElementById('userName').textContent = user.displayName || user.email;
-        document.getElementById('userAvatar').src = user.photoURL || 'https://via.placeholder.com/36';
-        
-        // 🆕 取得使用者權限設定
-        currentUserEmail = user.email;
-        const permissions = getUserPermissions(user.email);
-        
-        userRole = permissions.role;
-        hasInventoryPermission = permissions.canViewInventory;
-        canSwitchStore = permissions.canSwitchStore;
-        selectedStore = permissions.defaultStore;
-        
-        console.log(`👤 使用者: ${user.email}`);
-        console.log(`👔 身份: ${userRole}`);
-        console.log(`📊 庫存權限: ${hasInventoryPermission ? '✅ 有' : '❌ 無'}`);
-        console.log(`🏪 預設店別: ${selectedStore}`);
-        console.log(`🔄 切換店別: ${canSwitchStore ? '✅ 可以' : '❌ 不可'}`);
-        
-        // 🆕 初始化介面（顯示/隱藏庫存欄位、設定店別選單）
-        initializeInventoryUI();
-        
-        // 登入後載入資料
-        if (window.loadDefaultCSV) {
-          window.loadDefaultCSV().then(() => {
-            // 只有有權限的使用者才載入庫存
-            if (hasInventoryPermission) {
-              window.loadInventory();
+            document.getElementById('salesFileInput').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleSalesFiles(e.target.files);
+                }
+            });
+        }
+
+        // 處理參照資料
+        async function handleRefFile(file) {
+            try {
+                const data = await readExcelFile(file);
+                refData = data;
+                document.getElementById('refFileStatus').innerHTML = `
+                    <div class="success">
+                        ✅ 參照資料已載入：${file.name}（${data.length.toLocaleString()} 筆產品資料）
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('refFileStatus').innerHTML = `
+                    <div class="error">
+                        ❌ 載入失敗：${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 處理銷售報表
+        async function handleSalesFiles(files) {
+            const fileList = document.getElementById('salesFileList');
+            
+            for (let file of files) {
+                try {
+                    const data = await readExcelFile(file);
+                    const fileName = file.name.replace('.xls', '').replace('.xlsx', '');
+                    
+                    salesDataList.push({
+                        name: fileName,
+                        data: data
+                    });
+
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span>📄 ${fileName}（${data.length.toLocaleString()} 筆資料）</span>
+                        <button class="remove-btn" onclick="removeSalesFile('${fileName}')">移除</button>
+                    `;
+                    fileList.appendChild(fileItem);
+                } catch (error) {
+                    console.error('讀取失敗:', file.name, error);
+                }
+            }
+
+            if (salesDataList.length > 0 && refData) {
+                document.getElementById('analysisSection').classList.remove('hidden');
+                updatePeriodSelect();
+            }
+        }
+
+        // 移除銷售檔案
+        function removeSalesFile(fileName) {
+            salesDataList = salesDataList.filter(item => item.name !== fileName);
+            updateFileList();
+        }
+
+        // 清除所有銷售檔案
+        function clearSalesFiles() {
+            salesDataList = [];
+            document.getElementById('salesFileList').innerHTML = '';
+            document.getElementById('analysisSection').classList.add('hidden');
+        }
+
+        // 更新檔案列表
+        function updateFileList() {
+            const fileList = document.getElementById('salesFileList');
+            fileList.innerHTML = '';
+            salesDataList.forEach(item => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>📄 ${item.name}（${item.data.length.toLocaleString()} 筆資料）</span>
+                    <button class="remove-btn" onclick="removeSalesFile('${item.name}')">移除</button>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        // 更新週期選擇
+        function updatePeriodSelect() {
+            const select = document.getElementById('periodSelect');
+            select.innerHTML = '';
+            salesDataList.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.name;
+                option.textContent = item.name;
+                option.selected = true;
+                select.appendChild(option);
+            });
+        }
+
+        // 讀取Excel文件
+        function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                        resolve(jsonData);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // 分析數據
+        function analyzeData() {
+            if (!refData || salesDataList.length === 0) {
+                alert('請先上傳參照資料和銷售報表！');
+                return;
+            }
+
+            const selectedPeriods = Array.from(document.getElementById('periodSelect').selectedOptions).map(o => o.value);
+            const regionId = document.getElementById('regionSelect').value;
+            const storeId = document.getElementById('storeSelect').value;
+
+            if (selectedPeriods.length === 0) {
+                alert('請至少選擇一個週期！');
+                return;
+            }
+
+            document.getElementById('loadingSection').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+
+            setTimeout(() => {
+                try {
+                    processedData = processData(selectedPeriods, regionId, storeId);
+                    displayResults(processedData);
+                    document.getElementById('loadingSection').classList.add('hidden');
+                    document.getElementById('resultsSection').classList.remove('hidden');
+                } catch (error) {
+                    alert('處理數據時發生錯誤：' + error.message);
+                    document.getElementById('loadingSection').classList.add('hidden');
+                }
+            }, 500);
+        }
+
+        // 處理數據
+        function processData(selectedPeriods, regionId, storeId) {
+            // 建立產品分類對應表
+            const categoryMap = {};
+            refData.forEach(row => {
+                if (row.Code) {
+                    categoryMap[row.Code] = row['大分類'] || 'Unknown';
+                }
+            });
+
+            // 取得要分析的店鋪
+            let targetStores = [];
+            if (regionId === 'all') {
+                Object.values(REGIONS).forEach(region => {
+                    targetStores.push(...region.stores);
+                });
+            } else if (storeId === 'all') {
+                targetStores = REGIONS[regionId].stores;
             } else {
-              console.log('⚠️ 此帳號無庫存查看權限');
+                targetStores = [parseInt(storeId)];
             }
-          });
+
+            // 處理每個週期的數據
+            const results = [];
+            selectedPeriods.forEach(periodName => {
+                const salesItem = salesDataList.find(item => item.name === periodName);
+                if (!salesItem) return;
+
+                const periodData = {
+                    period: periodName,
+                    categories: {}
+                };
+
+                // 初始化分類
+                MAIN_CATEGORIES.forEach(cat => {
+                    periodData.categories[cat] = {
+                        qty: 0,
+                        amt: 0,
+                        cost: 0,
+                        adj: 0
+                    };
+                });
+
+                // 統計數據
+                salesItem.data.forEach(row => {
+                    if (!targetStores.includes(row.store_code_id)) return;
+
+                    const category = categoryMap[row.product_code] || 'Unknown';
+                    if (!MAIN_CATEGORIES.includes(category)) return;
+
+                    periodData.categories[category].qty += row.total_qty || 0;
+                    periodData.categories[category].amt += row.total_amt_t1 || 0;
+                    periodData.categories[category].cost += row.total_cost || 0;
+                    periodData.categories[category].adj += row.total_ADJ_COST || 0;
+                });
+
+                results.push(periodData);
+            });
+
+            return results;
         }
-      } else {
-        document.getElementById('loginPage').style.display = 'block';
-        document.getElementById('mainContent').style.display = 'none';
-      }
-    });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      try {
-        // 顯示登出中狀態
-        const btn = document.getElementById('logoutBtn');
-        const originalText = btn.textContent;
-        btn.textContent = '登出中...';
-        btn.disabled = true;
-        
-        // 🔧 完整登出流程
-        // 1. Firebase 登出
-        await signOut(auth);
-        
-        // 2. 清除本地資料
-        currentUserEmail = '';
-        hasInventoryPermission = false;
-        userRole = 'none';
-        canSwitchStore = false;
-        inventoryData = {};
-        storeInfo = {};
-        originalData = [];
-        selectedStore = '75';
-        
-        // 3. 清除快取的認證資訊（如果有的話）
-        if (window.sessionStorage) {
-          sessionStorage.clear();
+        // 顯示結果
+        function displayResults(data) {
+            displayStatCards(data);
+            displaySummaryTable(data);
+            displayDetailTable(data);
+            displayCharts(data);
         }
-        if (window.localStorage) {
-          // 只清除 Firebase 相關的 localStorage
-          const firebaseKeys = Object.keys(localStorage).filter(key => 
-            key.startsWith('firebase:')
-          );
-          firebaseKeys.forEach(key => localStorage.removeItem(key));
+
+        // 顯示統計卡片
+        function displayStatCards(data) {
+            const container = document.getElementById('statCards');
+            const totalQty = data.reduce((sum, period) => {
+                return sum + Object.values(period.categories).reduce((s, cat) => s + cat.qty, 0);
+            }, 0);
+            const totalAmt = data.reduce((sum, period) => {
+                return sum + Object.values(period.categories).reduce((s, cat) => s + cat.amt, 0);
+            }, 0);
+
+            container.innerHTML = `
+                <div class="stat-card">
+                    <h3>總銷售數量</h3>
+                    <div class="value">${totalQty.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>總銷售金額</h3>
+                    <div class="value">$${(totalAmt / 1000).toFixed(0)}K</div>
+                </div>
+                <div class="stat-card">
+                    <h3>分析週期數</h3>
+                    <div class="value">${data.length}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>產品分類</h3>
+                    <div class="value">${MAIN_CATEGORIES.length}</div>
+                </div>
+            `;
         }
-        
-        console.log('✅ 已完整登出');
-        
-        // 4. 重新載入頁面以完全清除狀態
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-        
-      } catch (error) {
-        console.error('❌ 登出錯誤:', error);
-        alert('登出時發生錯誤，請重新整理頁面');
-      }
-    });
 
-    window.firebaseAuth = auth;
-  </script>
-
-  <script>
-    let data = [];
-    let originalData = [];
-    let columnMapping = {};
-    let allCategories = new Set();
-    let allSubcategories = new Set();
-    let activeQuickFilter = null;
-    let activeQuickSubcategory = null;
-    let inventoryData = {}; // 🆕 儲存庫存資料
-    let storeInfo = {}; // 🆕 店別資訊
-    let selectedStore = '75'; // 🆕 當前選擇的店別（預設：75店）
-    let currentUserEmail = ''; // 🆕 當前使用者 email
-    let hasInventoryPermission = false; // 🆕 是否有庫存查看權限
-    let userRole = 'none'; // 🆕 使用者身份
-    let canSwitchStore = false; // 🆕 是否可以切換店別
-    
-    // 🆕 權限分組系統
-    const USER_PERMISSIONS = {
-      // 管理員：完整權限
-      administrator: {
-        users: [
-          'morio.chang@istore.com.tw'
-        ],
-        canViewInventory: true,      // 可以看到總庫存和庫存欄位
-        defaultStore: '75',           // 預設顯示店別 75
-        canSwitchStore: true          // 可以切換所有店別
-      },
-      
-      // 經理：完整權限
-      manager: {
-        users: [
-          'onion.huang@istore.com.tw'
-        ],
-        canViewInventory: true,      // 可以看到總庫存和庫存欄位
-        defaultStore: '75',           // 預設顯示店別 75
-        canSwitchStore: true          // 可以切換所有店別
-      },
-      
-      // 店別 75：只能看自己店
-      store_75: {
-        users: [
-          'istore.tc@istore.com.tw',
-          'ivy.chu@istore.com.tw',
-          'iris.chang@istore.com.tw',
-          'jimmy.chen@istore.com.tw',
-          'frank.chang@istore.com.tw',
-          'amy.chen@istore.com.tw',
-          'sharon.hsu@istore.com.tw',
-          'run.lin@istore.com.tw',
-          'luna.lin@istore.com.tw'
-        ],
-        canViewInventory: true,      // 可以看到總庫存和庫存欄位
-        defaultStore: '75',           // 預設顯示店別 75
-        canSwitchStore: false         // 無法切換店別
-      },
-      
-      // 店別 77：只能看自己店
-      store_77: {
-        users: [
-          'istore.mtc@istore.com.tw',
-          'mark.hung@istore.com.tw',
-          'william.huang@istore.com.tw',
-          'allen.chen@istore.com.tw',
-          'ariel.chen@istore.com.tw',
-          'ziwei.chiang@istore.com.tw',
-          'harry.lin@istore.com.tw'
-        ],
-        canViewInventory: true,      // 可以看到總庫存和庫存欄位
-        defaultStore: '77',           // 預設顯示店別 77
-        canSwitchStore: false         // 無法切換店別
-      }
-    };
-    
-    // 🆕 根據 email 取得使用者權限
-    function getUserPermissions(email) {
-      for (const [role, config] of Object.entries(USER_PERMISSIONS)) {
-        if (config.users.includes(email)) {
-          return {
-            role: role,
-            canViewInventory: config.canViewInventory,
-            defaultStore: config.defaultStore,
-            canSwitchStore: config.canSwitchStore
-          };
-        }
-      }
-      // 其他人：無權限
-      return {
-        role: 'none',
-        canViewInventory: false,
-        defaultStore: '75',
-        canSwitchStore: false
-      };
-    }
-
-    function showPage(pageName) {
-      document.querySelectorAll('.page').forEach(page => {
-        page.classList.remove('active');
-      });
-      
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      const pageMap = {
-        'search': 'searchPage',
-        'education': 'educationPage',
-        'care': 'carePage'
-      };
-      
-      const pageId = pageMap[pageName];
-      if (pageId) {
-        document.getElementById(pageId).classList.add('active');
-        document.querySelector(`.nav-btn[data-page="${pageName}"]`).classList.add('active');
-      }
-    }
-
-    const fieldMappings = {
-      'manufacture_style': ['manufacture_style', '型號', 'model', 'Model', '製造商型號'],
-      'Code': ['Code', 'code', '代碼', '編碼', 'SKU', 'sku'],
-      'product_name': ['product_name', '產品名稱', '商品名稱', 'name', 'Name', 'ProductName'],
-      '大分類': ['大分類', 'category', 'Category', '主分類', 'main_category'],
-      '中分類': ['中分類', 'subcategory', 'SubCategory', '次分類', 'sub_category'],
-      '小分類': ['小分類', 'subsubcategory', 'detail_category', '細分類'],
-      'Remark': ['remark', 'Remark', '備註', '說明', 'note', 'Note', 'comment']
-    };
-
-    function showError(error) {
-      const errorDiv = document.getElementById('errorInfo');
-      errorDiv.innerHTML = error;
-      errorDiv.style.display = 'block';
-    }
-
-    function hideMessages() {
-      document.getElementById('errorInfo').style.display = 'none';
-    }
-
-    function createColumnMapping(headers) {
-      columnMapping = {};
-      
-      for (const [targetField, possibleNames] of Object.entries(fieldMappings)) {
-        const foundHeader = possibleNames.find(name => 
-          headers.some(header => header.trim() === name)
-        );
-        
-        if (foundHeader) {
-          const actualHeader = headers.find(header => header.trim() === foundHeader);
-          columnMapping[targetField] = actualHeader;
-        }
-      }
-      
-      return Object.keys(columnMapping).length > 0;
-    }
-
-    function parseCSVWithPapa(csvText) {
-      return new Promise((resolve, reject) => {
-        const firstLine = csvText.split('\n')[0];
-        const hasHeader = !firstLine.match(/^[A-Z]{2}\d{3}[A-Z]{2}\/[A-Z]/);
-        
-        Papa.parse(csvText, {
-          header: hasHeader,
-          skipEmptyLines: true,
-          dynamicTyping: false,
-          complete: function(results) {
-            if (results.errors.length > 0) {
-              console.warn('CSV 解析警告:', results.errors);
-            }
+        // 顯示摘要表格
+        function displaySummaryTable(data) {
+            const container = document.getElementById('summaryTable');
             
-            if (!hasHeader) {
-              const processedData = results.data.map(row => ({
-                'manufacture_style': row[0] || '',
-                'Code': row[1] || '',
-                'product_name': row[2] || '',
-                '大分類': row[3] || '',
-                '中分類': row[4] || '',
-                '小分類': row[5] || '',
-                'Remark': row[6] || ''
-              }));
-              resolve(processedData);
-            } else {
-              resolve(results.data);
-            }
-          },
-          error: function(error) {
-            reject(error);
-          }
-        });
-      });
-    }
+            // 計算各分類總計
+            const summary = {};
+            MAIN_CATEGORIES.forEach(cat => {
+                summary[cat] = { qty: 0, amt: 0, profit: 0 };
+            });
 
-    function initializeFilters() {
-      const categorySelect = document.getElementById('categoryFilter');
-      const subcategorySelect = document.getElementById('subcategoryFilter');
-      
-      categorySelect.innerHTML = '<option value="">所有大分類</option>';
-      subcategorySelect.innerHTML = '<option value="">所有中分類</option>';
-      
-      allCategories.clear();
-      allSubcategories.clear();
-      
-      originalData.forEach(row => {
-        const category = row[columnMapping['大分類']];
-        const subcategory = row[columnMapping['中分類']];
-        
-        if (category && category.trim()) {
-          allCategories.add(category.trim());
+            data.forEach(period => {
+                Object.entries(period.categories).forEach(([cat, values]) => {
+                    summary[cat].qty += values.qty;
+                    summary[cat].amt += values.amt;
+                    summary[cat].profit += (values.amt - values.cost + values.adj);
+                });
+            });
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>大分類</th>
+                            <th class="number-cell">總銷售數量</th>
+                            <th class="number-cell">總銷售金額</th>
+                            <th class="number-cell">毛利額</th>
+                            <th class="number-cell">毛利率</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            Object.entries(summary).forEach(([cat, values]) => {
+                const profitRate = values.amt > 0 ? (values.profit / values.amt * 100) : 0;
+                html += `
+                    <tr>
+                        <td><strong>${cat}</strong></td>
+                        <td class="number-cell">${values.qty.toLocaleString()}</td>
+                        <td class="number-cell">$${values.amt.toLocaleString('zh-TW', {maximumFractionDigits: 0})}</td>
+                        <td class="number-cell">$${values.profit.toLocaleString('zh-TW', {maximumFractionDigits: 0})}</td>
+                        <td class="number-cell">${profitRate.toFixed(2)}%</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
-        if (subcategory && subcategory.trim()) {
-          allSubcategories.add(subcategory.trim());
-        }
-      });
-      
-      Array.from(allCategories).sort().forEach(category => {
-        const option = document.createElement('option');
-        option.value = category;
-        option.textContent = category;
-        categorySelect.appendChild(option);
-      });
-      
-      Array.from(allSubcategories).sort().forEach(subcategory => {
-        const option = document.createElement('option');
-        option.value = subcategory;
-        option.textContent = subcategory;
-        subcategorySelect.appendChild(option);
-      });
-    }
 
-    function updateSubcategoryOptions(selectedCategory) {
-      const subcategorySelect = document.getElementById('subcategoryFilter');
-      subcategorySelect.innerHTML = '<option value="">所有中分類</option>';
-      
-      if (!selectedCategory) {
-        Array.from(allSubcategories).sort().forEach(subcategory => {
-          const option = document.createElement('option');
-          option.value = subcategory;
-          option.textContent = subcategory;
-          subcategorySelect.appendChild(option);
-        });
-        return;
-      }
-      
-      const relevantSubcategories = new Set();
-      originalData.forEach(row => {
-        const category = row[columnMapping['大分類']];
-        const subcategory = row[columnMapping['中分類']];
-        
-        if (category === selectedCategory && subcategory && subcategory.trim()) {
-          relevantSubcategories.add(subcategory.trim());
-        }
-      });
-      
-      Array.from(relevantSubcategories).sort().forEach(subcategory => {
-        const option = document.createElement('option');
-        option.value = subcategory;
-        option.textContent = subcategory;
-        subcategorySelect.appendChild(option);
-      });
-    }
-
-    function updateFilterInfo() {
-      const keyword = document.getElementById('searchInput').value;
-      const category = document.getElementById('categoryFilter').value;
-      const subcategory = document.getElementById('subcategoryFilter').value;
-      const filterInfo = document.getElementById('filterInfo');
-      
-      let infoText = '';
-      const filters = [];
-      
-      if (keyword) filters.push(`關鍵字: "${keyword}"`);
-      if (category) filters.push(`大分類: "${category}"`);
-      if (subcategory) filters.push(`中分類: "${subcategory}"`);
-      
-      if (filters.length > 0) {
-        infoText = `目前篩選條件: ${filters.join(' | ')}`;
-        filterInfo.textContent = infoText;
-        filterInfo.style.display = 'block';
-      } else {
-        filterInfo.style.display = 'none';
-      }
-    }
-
-    function applyFilters() {
-      const keyword = document.getElementById('searchInput').value.toLowerCase();
-      const selectedCategory = document.getElementById('categoryFilter').value;
-      const selectedSubcategory = document.getElementById('subcategoryFilter').value;
-      
-      let filtered = originalData;
-      
-      if (selectedCategory) {
-        filtered = filtered.filter(row => 
-          row[columnMapping['大分類']] === selectedCategory
-        );
-      }
-      
-      if (selectedSubcategory) {
-        filtered = filtered.filter(row => 
-          row[columnMapping['中分類']] === selectedSubcategory
-        );
-      }
-      
-      if (keyword) {
-        filtered = filtered.filter(row =>
-          Object.values(row).some(value =>
-            value && value.toString().toLowerCase().includes(keyword)
-          )
-        );
-      }
-      
-      renderTable(filtered);
-      updateFilterInfo();
-    }
-
-    function showQuickSubcategoryButtons(category) {
-      const quickSubcategoryRow = document.getElementById('quickSubcategoryRow');
-      const quickSubcategoryButtons = document.getElementById('quickSubcategoryButtons');
-      
-      if (!category) {
-        quickSubcategoryRow.classList.remove('active');
-        quickSubcategoryButtons.innerHTML = '';
-        return;
-      }
-      
-      const relevantSubcategories = new Set();
-      originalData.forEach(row => {
-        const rowCategory = row[columnMapping['大分類']];
-        const subcategory = row[columnMapping['中分類']];
-        
-        if (rowCategory === category && subcategory && subcategory.trim()) {
-          relevantSubcategories.add(subcategory.trim());
-        }
-      });
-      
-      quickSubcategoryButtons.innerHTML = '';
-      const sortedSubcategories = Array.from(relevantSubcategories).sort();
-      
-      if (sortedSubcategories.length > 0) {
-        quickSubcategoryRow.classList.add('active');
-        
-        sortedSubcategories.forEach(subcategory => {
-          const button = document.createElement('button');
-          button.className = 'quick-subcategory-btn';
-          button.textContent = subcategory;
-          button.setAttribute('data-subcategory', subcategory);
-          quickSubcategoryButtons.appendChild(button);
-        });
-      } else {
-        quickSubcategoryRow.classList.remove('active');
-      }
-    }
-
-    function quickSubcategoryFilter(subcategory) {
-      const subcategorySelect = document.getElementById('subcategoryFilter');
-      const buttons = document.querySelectorAll('.quick-subcategory-btn');
-      
-      buttons.forEach(btn => btn.classList.remove('active'));
-      
-      if (activeQuickSubcategory === subcategory) {
-        activeQuickSubcategory = null;
-        subcategorySelect.value = '';
-      } else {
-        activeQuickSubcategory = subcategory;
-        subcategorySelect.value = subcategory;
-        const activeBtn = document.querySelector(`.quick-subcategory-btn[data-subcategory="${subcategory}"]`);
-        if (activeBtn) activeBtn.classList.add('active');
-      }
-      
-      applyFilters();
-    }
-
-    function quickFilter(category) {
-      const categorySelect = document.getElementById('categoryFilter');
-      const subcategorySelect = document.getElementById('subcategoryFilter');
-      const buttons = document.querySelectorAll('.quick-filter-btn');
-      
-      buttons.forEach(btn => btn.classList.remove('active'));
-      
-      if (activeQuickFilter === category) {
-        activeQuickFilter = null;
-        activeQuickSubcategory = null;
-        categorySelect.value = '';
-        subcategorySelect.value = '';
-        updateSubcategoryOptions('');
-        showQuickSubcategoryButtons('');
-      } else {
-        activeQuickFilter = category;
-        activeQuickSubcategory = null;
-        categorySelect.value = category;
-        subcategorySelect.value = '';
-        
-        updateSubcategoryOptions(category);
-        showQuickSubcategoryButtons(category);
-        
-        const activeBtn = document.querySelector(`.quick-filter-btn[data-category="${category}"]`);
-        if (activeBtn) activeBtn.classList.add('active');
-      }
-      
-      applyFilters();
-    }
-
-    function clearAllFilters() {
-      document.getElementById('searchInput').value = '';
-      document.getElementById('categoryFilter').value = '';
-      document.getElementById('subcategoryFilter').value = '';
-      
-      activeQuickFilter = null;
-      activeQuickSubcategory = null;
-      document.querySelectorAll('.quick-filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      showQuickSubcategoryButtons('');
-      updateSubcategoryOptions('');
-      
-      renderTable(originalData);
-      updateFilterInfo();
-    }
-
-    // 🆕 渲染表格（含庫存）
-    function renderTable(filteredData) {
-      const tbody = document.querySelector('#resultTable tbody');
-      tbody.innerHTML = '';
-      
-      // 🆕 根據權限決定 colspan（有權限時多兩欄：總庫存 + 店別庫存）
-      const colspanCount = hasInventoryPermission ? 9 : 7;
-      
-      if (filteredData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${colspanCount}" class="no-results">沒有符合的資料</td></tr>`;
-        return;
-      }
-
-      filteredData.forEach(row => {
-        const code = row[columnMapping['Code']] || '';
-        
-        // 🆕 只有有權限的使用者才處理庫存
-        let totalStockHtml = '';
-        let stockHtml = '';
-        
-        if (hasInventoryPermission) {
-          const productInventory = inventoryData[code];
-          
-          // 計算總庫存
-          let totalStock = 0;
-          if (productInventory) {
-            totalStock = productInventory.total || 0;
-          }
-          
-          // 顯示總庫存
-          totalStockHtml = '<span class="stock-unknown">-</span>';
-          if (totalStock === 0 && productInventory) {
-            totalStockHtml = '<span class="stock-out">0</span>';
-          } else if (totalStock > 0 && totalStock <= 5) {
-            totalStockHtml = `<span class="stock-low">${totalStock}</span>`;
-          } else if (totalStock > 5) {
-            totalStockHtml = `<span class="stock-available">${totalStock}</span>`;
-          }
-          
-          // 🆕 根據選擇的店別取得庫存數量
-          let stock = 0;
-          if (productInventory) {
-            if (selectedStore === 'total') {
-              // 顯示總庫存（與總庫存欄位相同）
-              stock = productInventory.total || 0;
-            } else {
-              // 顯示特定店別的庫存
-              stock = productInventory.stores?.[selectedStore] || 0;
-            }
-          }
-          
-          // 決定店別庫存顯示
-          stockHtml = '<span class="stock-unknown">-</span>';
-          if (stock === 0 && productInventory) {
-            stockHtml = '<span class="stock-out">0</span>';
-          } else if (stock > 0 && stock <= 5) {
-            stockHtml = `<span class="stock-low">${stock}</span>`;
-          } else if (stock > 5) {
-            stockHtml = `<span class="stock-available">${stock}</span>`;
-          }
-        }
-        
-        const tr = document.createElement('tr');
-        
-        // 🆕 根據權限決定是否顯示庫存欄位
-        if (hasInventoryPermission) {
-          tr.innerHTML = `
-            <td>${row[columnMapping['manufacture_style']] || ''}</td>
-            <td>${code}</td>
-            <td>${row[columnMapping['product_name']] || ''}</td>
-            <td>${row[columnMapping['大分類']] || ''}</td>
-            <td>${row[columnMapping['中分類']] || ''}</td>
-            <td>${row[columnMapping['小分類']] || ''}</td>
-            <td class="stock-cell">${totalStockHtml}</td>
-            <td class="stock-cell">${stockHtml}</td>
-            <td>${row[columnMapping['Remark']] || ''}</td>
-          `;
-        } else {
-          tr.innerHTML = `
-            <td>${row[columnMapping['manufacture_style']] || ''}</td>
-            <td>${code}</td>
-            <td>${row[columnMapping['product_name']] || ''}</td>
-            <td>${row[columnMapping['大分類']] || ''}</td>
-            <td>${row[columnMapping['中分類']] || ''}</td>
-            <td>${row[columnMapping['小分類']] || ''}</td>
-            <td>${row[columnMapping['Remark']] || ''}</td>
-          `;
-        }
-        
-        tbody.appendChild(tr);
-      });
-    }
-
-    // 🆕 根據權限初始化介面
-    function initializeInventoryUI() {
-      const totalStockHeader = document.getElementById('totalStockHeader');
-      const stockHeader = document.getElementById('stockHeader');
-      const inventoryStatus = document.getElementById('inventoryStatus');
-      const storeSelector = document.getElementById('storeSelector');
-      
-      if (hasInventoryPermission) {
-        // 顯示庫存欄位
-        if (totalStockHeader) totalStockHeader.style.display = '';
-        if (stockHeader) stockHeader.style.display = '';
-        
-        // 🆕 根據 canSwitchStore 控制店別選單
-        if (storeSelector) {
-          if (canSwitchStore) {
-            // 可以切換店別：顯示選單
-            storeSelector.style.display = 'block';
-            console.log('✅ 店別選單已啟用');
-          } else {
-            // 不能切換店別：隱藏選單，只顯示固定店別
-            storeSelector.style.display = 'none';
+        // 顯示詳細表格
+        function displayDetailTable(data) {
+            const container = document.getElementById('detailTable');
             
-            // 在標題中顯示固定的店別
-            const stockHeaderLabel = stockHeader.querySelector('span') || stockHeader;
-            const storeName = storeInfo[selectedStore] || `店別 ${selectedStore}`;
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>週期</th>
+                            ${MAIN_CATEGORIES.map(cat => `<th class="number-cell">${cat}<br>數量</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.forEach(period => {
+                html += `<tr><td><strong>${period.period}</strong></td>`;
+                MAIN_CATEGORIES.forEach(cat => {
+                    const qty = period.categories[cat]?.qty || 0;
+                    html += `<td class="number-cell">${qty.toLocaleString()}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // 顯示圖表
+        function displayCharts(data) {
+            const labels = data.map(d => d.period);
             
-            // 如果還沒有 span，創建一個
-            if (!stockHeader.querySelector('span')) {
-              stockHeader.innerHTML = `庫存<br><span style="font-size: 11px; font-weight: 400; opacity: 0.8;">${storeName}</span>`;
+            // 數量圖表
+            const qtyDatasets = MAIN_CATEGORIES.map((cat, index) => ({
+                label: cat,
+                data: data.map(d => d.categories[cat]?.qty || 0),
+                borderColor: getColor(index),
+                backgroundColor: getColor(index, 0.1),
+                borderWidth: 2,
+                tension: 0.4
+            }));
+
+            const qtyCtx = document.getElementById('qtyChart');
+            if (window.qtyChart) window.qtyChart.destroy();
+            window.qtyChart = new Chart(qtyCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: qtyDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // 金額圖表
+            const amtDatasets = MAIN_CATEGORIES.map((cat, index) => ({
+                label: cat,
+                data: data.map(d => d.categories[cat]?.amt || 0),
+                borderColor: getColor(index),
+                backgroundColor: getColor(index, 0.1),
+                borderWidth: 2,
+                tension: 0.4
+            }));
+
+            const amtCtx = document.getElementById('amtChart');
+            if (window.amtChart) window.amtChart.destroy();
+            window.amtChart = new Chart(amtCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: amtDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // 取得顏色
+        function getColor(index, alpha = 1) {
+            const colors = [
+                `rgba(102, 126, 234, ${alpha})`,
+                `rgba(118, 75, 162, ${alpha})`,
+                `rgba(237, 100, 166, ${alpha})`,
+                `rgba(255, 71, 87, ${alpha})`,
+                `rgba(46, 213, 115, ${alpha})`,
+                `rgba(0, 184, 148, ${alpha})`,
+                `rgba(255, 177, 66, ${alpha})`,
+                `rgba(253, 121, 168, ${alpha})`,
+                `rgba(99, 110, 250, ${alpha})`
+            ];
+            return colors[index % colors.length];
+        }
+
+        // 切換標籤
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        // 區域改變時更新店鋪選項
+        document.getElementById('regionSelect').addEventListener('change', function() {
+            const regionId = this.value;
+            const storeSelect = document.getElementById('storeSelect');
+            storeSelect.innerHTML = '<option value="all">全部店鋪</option>';
+            
+            if (regionId !== 'all') {
+                REGIONS[regionId].stores.forEach(storeId => {
+                    const option = document.createElement('option');
+                    option.value = storeId;
+                    option.textContent = `店鋪 ${storeId}`;
+                    storeSelect.appendChild(option);
+                });
             }
-            
-            console.log(`🔒 店別選單已鎖定為: ${selectedStore}`);
-          }
-        }
-        
-        console.log('✅ 庫存欄位已啟用');
-      } else {
-        // 隱藏庫存欄位
-        if (totalStockHeader) totalStockHeader.style.display = 'none';
-        if (stockHeader) stockHeader.style.display = 'none';
-        if (inventoryStatus) inventoryStatus.style.display = 'none';
-        console.log('⚠️ 庫存欄位已隱藏');
-      }
-    }
-
-    // 🆕 載入庫存資料
-    async function loadInventory() {
-      try {
-        console.log('🔄 開始載入庫存資料...');
-        const response = await fetch('inventory.json?v=' + new Date().getTime());
-        
-        if (!response.ok) {
-          console.log('⚠️ 找不到 inventory.json，將顯示無庫存');
-          return;
-        }
-        
-        const data = await response.json();
-        inventoryData = data.inventory || {};
-        storeInfo = data.storeInfo || {};
-        
-        console.log(`✅ 庫存資料載入成功！`);
-        console.log(`   產品數: ${Object.keys(inventoryData).length}`);
-        console.log(`   店別數: ${Object.keys(storeInfo).length}`);
-        console.log(`   最後更新: ${data.lastUpdate}`);
-        
-        // 🆕 初始化店別選單
-        initializeStoreSelector();
-        
-        // 顯示庫存狀態
-        const statusDiv = document.getElementById('inventoryStatus');
-        const updateTimeSpan = document.getElementById('inventoryUpdateTime');
-        if (updateTimeSpan) updateTimeSpan.textContent = `(${data.lastUpdate})`;
-        if (statusDiv) statusDiv.classList.add('loaded');
-        
-        // 重新渲染表格
-        if (originalData.length > 0) {
-          applyFilters();
-        }
-        
-      } catch (error) {
-        console.error('❌ 載入庫存失敗:', error);
-      }
-    }
-
-    // 🆕 初始化店別選單
-    function initializeStoreSelector() {
-      const selector = document.getElementById('storeSelector');
-      if (!selector) return;
-      
-      // 清空並重新填充選項
-      selector.innerHTML = '<option value="total">總庫存</option>';
-      
-      // 按店別代碼排序
-      const sortedStores = Object.keys(storeInfo).sort((a, b) => parseInt(a) - parseInt(b));
-      
-      sortedStores.forEach(storeId => {
-        const option = document.createElement('option');
-        option.value = storeId;
-        option.textContent = storeId; // 只顯示店別代號
-        
-        // 🆕 根據使用者權限設定的預設店別來選擇
-        if (storeId === selectedStore) {
-          option.selected = true;
-        }
-        
-        selector.appendChild(option);
-      });
-      
-      // 監聽選擇變化（只有 canSwitchStore 為 true 時才會看到選單）
-      selector.addEventListener('change', function() {
-        selectedStore = this.value;
-        console.log(`📍 切換到: ${selectedStore === 'total' ? '總庫存' : '店別 ' + selectedStore}`);
-        applyFilters(); // 重新渲染表格
-      });
-      
-      console.log(`✅ 店別選單已初始化 (${sortedStores.length} 個店別)`);
-      console.log(`📍 預設顯示: 店別 ${selectedStore}`);
-    }
-
-    // 載入產品資料
-    async function loadDefaultCSV() {
-      try {
-        hideMessages();
-        const response = await fetch('data.csv?v=' + new Date().getTime());
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: 無法載入 data.csv`);
-        }
-        
-        const text = await response.text();
-        originalData = await parseCSVWithPapa(text);
-        
-        if (originalData.length === 0) {
-          showError('data.csv 檔案是空的');
-          return;
-        }
-
-        const headers = Object.keys(originalData[0]);
-        const mappingSuccess = createColumnMapping(headers);
-        
-        if (!mappingSuccess) {
-          showError('data.csv 欄位格式不正確');
-          return;
-        }
-
-        renderTable(originalData);
-        initializeFilters();
-        
-      } catch (error) {
-        showError('載入資料失敗: ' + error.message);
-      }
-    }
-
-    function initializeEventListeners() {
-      document.getElementById('searchInput').addEventListener('input', applyFilters);
-      
-      document.getElementById('categoryFilter').addEventListener('change', function() {
-        const selectedCategory = this.value;
-        updateSubcategoryOptions(selectedCategory);
-        document.getElementById('subcategoryFilter').value = '';
-        
-        showQuickSubcategoryButtons(selectedCategory);
-        activeQuickSubcategory = null;
-        
-        const buttons = document.querySelectorAll('.quick-filter-btn');
-        buttons.forEach(btn => {
-          if (btn.getAttribute('data-category') === selectedCategory) {
-            btn.classList.add('active');
-            activeQuickFilter = selectedCategory;
-          } else {
-            btn.classList.remove('active');
-          }
         });
-        
-        if (!selectedCategory) {
-          activeQuickFilter = null;
-        }
-        
-        applyFilters();
-      });
-      
-      document.getElementById('subcategoryFilter').addEventListener('change', function() {
-        const selectedSubcategory = this.value;
-        
-        const buttons = document.querySelectorAll('.quick-subcategory-btn');
-        buttons.forEach(btn => {
-          if (btn.getAttribute('data-subcategory') === selectedSubcategory) {
-            btn.classList.add('active');
-            activeQuickSubcategory = selectedSubcategory;
-          } else {
-            btn.classList.remove('active');
-          }
-        });
-        
-        if (!selectedSubcategory) {
-          activeQuickSubcategory = null;
-        }
-        
-        applyFilters();
-      });
-      
-      document.getElementById('clearFilters').addEventListener('click', clearAllFilters);
-
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const pageName = this.getAttribute('data-page');
-          showPage(pageName);
-        });
-      });
-
-      document.querySelectorAll('.quick-filter-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const category = this.getAttribute('data-category');
-          quickFilter(category);
-        });
-      });
-
-      document.getElementById('quickSubcategoryButtons').addEventListener('click', function(e) {
-        if (e.target.classList.contains('quick-subcategory-btn')) {
-          const subcategory = e.target.getAttribute('data-subcategory');
-          quickSubcategoryFilter(subcategory);
-        }
-      });
-    }
-
-    // 🆕 設為全域函式，供 Firebase 登入後呼叫
-    window.loadDefaultCSV = loadDefaultCSV;
-    window.loadInventory = loadInventory;
-    
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initializeEventListeners);
-    } else {
-      initializeEventListeners();
-    }
-  </script>
+    </script>
 </body>
 </html>
