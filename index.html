@@ -504,9 +504,10 @@
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
+        // 重要：綁定事件監聽器
         fileInput.addEventListener('change', handleFileSelect);
-        contrastSlider.addEventListener('input', updateControls);
-        brightnessSlider.addEventListener('input', updateControls);
+        contrastSlider.addEventListener('input', updateImageControls);
+        brightnessSlider.addEventListener('input', updateImageControls);
         serialPosSlider.addEventListener('input', updateMaskControls);
         serialHeightSlider.addEventListener('input', updateMaskControls);
         generateBtn.addEventListener('click', generatePDF);
@@ -738,6 +739,7 @@
             ctx.putImageData(imageData, 0, 0);
             
             if (index === 0) {
+                // 讀取滑桿的值
                 const serialPosPercent = parseFloat(serialPosSlider.value) / 100;
                 const serialHeightPercent = parseFloat(serialHeightSlider.value) / 100;
                 
@@ -753,7 +755,7 @@
                 const maskY = canvas.height - maskHeight;
                 ctx.fillRect(0, maskY, canvas.width, maskHeight);
                 
-                console.log('✓ 第1張已遮蔽序號欄位和底部');
+                console.log(`✓ 第1張已遮蔽序號欄位 (位置: ${serialPosSlider.value}%, 高度: ${serialHeightSlider.value}%)`);
             }
             
             if (index === 3) {
@@ -832,7 +834,7 @@
             }
         }
 
-        function updateControls() {
+        function updateImageControls() {
             contrastValue.textContent = contrastSlider.value + '%';
             brightnessValue.textContent = brightnessSlider.value + '%';
             processAllImages();
@@ -841,6 +843,7 @@
         function updateMaskControls() {
             serialPosValue.textContent = serialPosSlider.value + '%';
             serialHeightValue.textContent = serialHeightSlider.value + '%';
+            // 重新處理所有圖片以應用新的遮蔽設定
             processAllImages();
         }
 
