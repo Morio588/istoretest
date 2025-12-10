@@ -194,6 +194,22 @@
             color: #ffb74d;
         }
 
+        .sort-hint {
+            background: #3a4a5c;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: none;
+            text-align: center;
+            color: #a0a0a0;
+            font-size: 14px;
+        }
+
+        .sort-hint.show {
+            display: block;
+        }
+
         .preview-section {
             display: none;
         }
@@ -231,22 +247,68 @@
             font-weight: 600;
         }
 
-        .preview-item .delete-btn {
+        .preview-item .mask-badge {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(95, 184, 120, 0.9);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .preview-item .controls-overlay {
             position: absolute;
             top: 10px;
             right: 10px;
-            background: #e74c3c;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .preview-item .move-btn,
+        .preview-item .delete-btn {
+            background: rgba(0,0,0,0.7);
             color: white;
             border: none;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            font-size: 18px;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            font-size: 16px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            transition: all 0.3s;
+        }
+
+        .preview-item .move-btn:active,
+        .preview-item .delete-btn:active {
+            transform: scale(0.95);
+        }
+
+        .preview-item .delete-btn {
+            background: #e74c3c;
+        }
+
+        .preview-item .move-btn.up {
+            background: #5a6c7d;
+        }
+
+        .preview-item .move-btn.down {
+            background: #5a6c7d;
+        }
+
+        .preview-item .move-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
         }
 
         .generate-btn {
@@ -286,6 +348,28 @@
             font-weight: 500;
         }
 
+        .download-tip {
+            background: #3a4a5c;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: none;
+            color: #a0a0a0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .download-tip.show {
+            display: block;
+        }
+
+        .download-tip strong {
+            color: #e8e8e8;
+            display: block;
+            margin-bottom: 8px;
+        }
+
         @media (max-width: 600px) {
             .preview-grid {
                 grid-template-columns: 1fr;
@@ -316,6 +400,10 @@
             <div class="ocr-status" id="ocrStatus"></div>
         </div>
 
+        <div class="sort-hint" id="sortHint">
+            📋 第1張序號與底部遮蔽 / 第4張序號遮蔽 - 可使用 ↑↓ 調整順序
+        </div>
+
         <div class="controls" id="controls">
             <div class="control-group">
                 <label>
@@ -340,6 +428,10 @@
                 <span>📥</span>
                 <span>生成 PDF</span>
             </button>
+            <div class="download-tip" id="downloadTip">
+                <strong>💡 iOS 下載提示：</strong>
+                點擊「生成 PDF」後，檔案會自動下載。請到 Safari 的「下載項目」(↓) 查看，檔名會是你設定的發票號碼。
+            </div>
         </div>
     </div>
 
@@ -349,6 +441,7 @@
         let images = [];
         let processedImages = [];
         let detectedFilename = '';
+        let serialNumbers = []; // 儲存每張圖片辨識到的序號
 
         const fileInput = document.getElementById('fileInput');
         const previewGrid = document.getElementById('previewGrid');
@@ -359,10 +452,14 @@
         const generateBtn = document.getElementById('generateBtn');
         const stats = document.getElementById('stats');
         const ocrStatus = document.getElementById('ocrStatus');
+        const sortHint = document.getElementById('sortHint');
+        const downloadTip = document.getElementById('downloadTip');
         const contrastSlider = document.getElementById('contrast');
         const brightnessSlider = document.getElementById('brightness');
         const contrastValue = document.getElementById('contrastValue');
         const brightnessValue = document.getElementById('brightnessValue');
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
         fileInput.addEventListener('change', handleFileSelect);
         contrastSlider.addEventListener('input', updateControls);
@@ -375,15 +472,28 @@
 
             images = [];
             processedImages = [];
+            serialNumbers = [];
             
-            await Promise.all(files.map(file => loadImage(file)));
+            for (const file of files) {
+                await loadImage(file);
+            }
+            
+            // 辨識第一張圖片的序號
+            if (images.length >= 1) {
+                await detectFirstImageSerial();
+            }
+            
             processAllImages();
             updateStats();
             controls.style.display = 'block';
             filenameSection.style.display = 'block';
             previewSection.style.display = 'block';
+            sortHint.classList.add('show');
             
-            // 進行 OCR 辨識
+            if (isIOS) {
+                downloadTip.classList.add('show');
+            }
+            
             await performOCR();
         }
 
@@ -402,6 +512,61 @@
             });
         }
 
+        async function detectFirstImageSerial() {
+            console.log('開始辨識第一張圖片的序號...');
+            
+            try {
+                const img = images[0];
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // 擷取機器序號欄位區域（根據你的圖片調整）
+                const cropX = Math.floor(img.width * 0.15);      // 左側 15%
+                const cropY = Math.floor(img.height * 0.235);    // 上方 23.5% (機器序號那一欄)
+                const cropWidth = Math.floor(img.width * 0.7);   // 寬度 70%
+                const cropHeight = Math.floor(img.height * 0.04); // 高度 4%
+                
+                canvas.width = cropWidth;
+                canvas.height = cropHeight;
+                
+                ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+                
+                // 增強對比度
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    let gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                    gray = ((gray - 128) * 2.0) + 128;
+                    gray = Math.max(0, Math.min(255, gray));
+                    data[i] = data[i + 1] = data[i + 2] = gray;
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                
+                const result = await Tesseract.recognize(canvas, 'eng', { logger: () => {} });
+                const text = result.data.text.replace(/\s/g, '');
+                
+                console.log('第一張圖片序號區域 OCR 結果:', text);
+                
+                // 匹配序號格式: 10位英數字
+                const serialPattern = /[A-Z0-9]{10}/gi;
+                const matches = text.match(serialPattern);
+                
+                if (matches && matches.length > 0) {
+                    serialNumbers[0] = matches.join(', ');
+                    console.log('✓ 找到序號:', serialNumbers[0]);
+                } else {
+                    serialNumbers[0] = null;
+                    console.log('✗ 未找到序號');
+                }
+                
+            } catch (error) {
+                console.error('第一張圖片序號辨識失敗:', error);
+                serialNumbers[0] = null;
+            }
+        }
+
         async function performOCR() {
             if (images.length === 0) return;
             
@@ -410,12 +575,10 @@
             filenameInput.value = '';
             
             try {
-                // 使用第一張圖片進行 OCR，只擷取右上角區域
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 const img = images[0];
                 
-                // 擷取右上角區域 (約 40% 寬度，15% 高度)
                 const cropWidth = Math.floor(img.width * 0.4);
                 const cropHeight = Math.floor(img.height * 0.15);
                 const cropX = img.width - cropWidth;
@@ -424,10 +587,8 @@
                 canvas.width = cropWidth;
                 canvas.height = cropHeight;
                 
-                // 繪製擷取區域
                 ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
                 
-                // 增強對比度以提高 OCR 準確度
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
                 
@@ -453,16 +614,13 @@
                     }
                 );
                 
-                // 在辨識結果中尋找發票號碼格式
                 const text = result.data.text.replace(/\s/g, '');
-                console.log('OCR 原始結果:', text);
+                console.log('發票 OCR 原始結果:', text);
                 
-                // 匹配各種可能的格式：
-                // UC-83319382, UC83319382, 0C-83319382 (O被誤認為0)
                 const patterns = [
-                    /[A-Z]{2}-?\d{8}/gi,           // 標準格式
-                    /[A-Z0]{2}-?\d{8}/gi,          // 可能有 O 被誤認為 0
-                    /[A-Z]{1}[A-Z0]{1}-?\d{8}/gi   // 第二個字母可能是 O 或 0
+                    /[A-Z]{2}-?\d{8}/gi,
+                    /[A-Z0]{2}-?\d{8}/gi,
+                    /[A-Z]{1}[A-Z0]{1}-?\d{8}/gi
                 ];
                 
                 let matches = null;
@@ -472,14 +630,10 @@
                 }
                 
                 if (matches && matches.length > 0) {
-                    // 取第一個匹配並格式化
                     let invoiceNum = matches[0].replace(/-/g, '');
+                    invoiceNum = invoiceNum.replace(/0([A-Z])/g, 'O$1');
+                    invoiceNum = invoiceNum.replace(/([A-Z])0/g, '$1O');
                     
-                    // 修正常見的 OCR 誤認
-                    invoiceNum = invoiceNum.replace(/0([A-Z])/g, 'O$1'); // 0C -> OC
-                    invoiceNum = invoiceNum.replace(/([A-Z])0/g, '$1O'); // C0 -> CO
-                    
-                    // 確保前兩個字元是字母
                     if (invoiceNum.length >= 10) {
                         const prefix = invoiceNum.substring(0, 2).toUpperCase();
                         const numbers = invoiceNum.substring(2, 10);
@@ -505,11 +659,11 @@
         }
 
         function processAllImages() {
-            processedImages = images.map(img => processImage(img));
+            processedImages = images.map((img, index) => processImage(img, index));
             displayPreviews();
         }
 
-        function processImage(img) {
+        function processImage(img, index) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             
@@ -524,6 +678,7 @@
             const contrast = parseFloat(contrastSlider.value) / 100;
             const brightness = parseFloat(brightnessSlider.value) / 100;
             
+            // 處理黑白效果
             for (let i = 0; i < data.length; i += 4) {
                 let gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
                 
@@ -537,6 +692,39 @@
             }
             
             ctx.putImageData(imageData, 0, 0);
+            
+            // 第一張圖片：遮蔽機器序號欄位 + 底部 10%
+            if (index === 0) {
+                // 遮蔽機器序號欄位
+                const serialX = Math.floor(canvas.width * 0.15);
+                const serialY = Math.floor(canvas.height * 0.235);
+                const serialWidth = Math.floor(canvas.width * 0.7);
+                const serialHeight = Math.floor(canvas.height * 0.04);
+                
+                ctx.fillStyle = 'white';
+                ctx.fillRect(serialX, serialY, serialWidth, serialHeight);
+                
+                // 遮蔽底部 10%
+                const maskHeight = Math.floor(canvas.height * 0.1);
+                const maskY = canvas.height - maskHeight;
+                ctx.fillRect(0, maskY, canvas.width, maskHeight);
+                
+                console.log('✓ 第1張已遮蔽序號欄位和底部');
+            }
+            
+            // 第四張圖片：遮蔽序號區域（固定位置）
+            if (index === 3) {
+                const maskX = Math.floor(canvas.width * 0.15);
+                const maskY = Math.floor(canvas.height * 0.42);
+                const maskWidth = Math.floor(canvas.width * 0.7);
+                const maskHeight = Math.floor(canvas.height * 0.08);
+                
+                ctx.fillStyle = 'white';
+                ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
+                
+                console.log('✓ 第4張已遮蔽序號區域');
+            }
+            
             return canvas.toDataURL('image/jpeg', 0.9);
         }
 
@@ -545,25 +733,58 @@
             processedImages.forEach((dataUrl, index) => {
                 const div = document.createElement('div');
                 div.className = 'preview-item';
+                
+                let maskBadge = '';
+                if (index === 0) {
+                    const serialText = serialNumbers[0] ? `: ${serialNumbers[0]}` : '';
+                    maskBadge = `<div class="mask-badge">✓ 序號與底部已遮蔽${serialText}</div>`;
+                } else if (index === 3) {
+                    maskBadge = '<div class="mask-badge">✓ 序號已遮蔽</div>';
+                }
+                
                 div.innerHTML = `
                     <div class="page-number">第 ${index + 1} 頁</div>
-                    <button class="delete-btn" onclick="deleteImage(${index})">×</button>
+                    ${maskBadge}
+                    <div class="controls-overlay">
+                        <button class="move-btn up" onclick="moveImage(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+                        <button class="delete-btn" onclick="deleteImage(${index})">×</button>
+                        <button class="move-btn down" onclick="moveImage(${index}, 1)" ${index === images.length - 1 ? 'disabled' : ''}>↓</button>
+                    </div>
                     <img src="${dataUrl}" alt="Page ${index + 1}">
                 `;
                 previewGrid.appendChild(div);
             });
         }
 
+        function moveImage(index, direction) {
+            const newIndex = index + direction;
+            
+            if (newIndex < 0 || newIndex >= images.length) return;
+            
+            [images[index], images[newIndex]] = [images[newIndex], images[index]];
+            [serialNumbers[index], serialNumbers[newIndex]] = [serialNumbers[newIndex], serialNumbers[index]];
+            
+            processAllImages();
+            updateStats();
+        }
+
         function deleteImage(index) {
             images.splice(index, 1);
             processedImages.splice(index, 1);
-            displayPreviews();
+            serialNumbers.splice(index, 1);
+            
+            if (images.length > 0) {
+                processAllImages();
+            }
+            
             updateStats();
             
             if (images.length === 0) {
                 previewSection.style.display = 'none';
                 controls.style.display = 'none';
                 filenameSection.style.display = 'none';
+                sortHint.classList.remove('show');
+                downloadTip.classList.remove('show');
             }
         }
 
@@ -585,7 +806,6 @@
             
             const { jsPDF } = window.jspdf;
             
-            // A4 尺寸 (mm)
             const a4Width = 210;
             const a4Height = 297;
             
@@ -615,13 +835,11 @@
                 let finalWidth, finalHeight, xOffset, yOffset;
                 
                 if (imgRatio > a4Ratio) {
-                    // 圖片較寬，以寬度為準
                     finalWidth = a4Width;
                     finalHeight = a4Width / imgRatio;
                     xOffset = 0;
                     yOffset = (a4Height - finalHeight) / 2;
                 } else {
-                    // 圖片較高，以高度為準
                     finalHeight = a4Height;
                     finalWidth = a4Height * imgRatio;
                     xOffset = (a4Width - finalWidth) / 2;
@@ -631,16 +849,32 @@
                 pdf.addImage(processedImages[i], 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
             }
             
-            // 使用自訂檔名或辨識的發票號碼
             let filename = filenameInput.value.trim() || detectedFilename || '掃描文件';
-            
-            // 移除不合法的檔名字元
             filename = filename.replace(/[<>:"/\\|?*]/g, '_');
             
-            pdf.save(`${filename}.pdf`);
-            
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = '<span>✅</span><span>完成！</span>';
+            try {
+                const pdfBlob = pdf.output('blob');
+                const url = URL.createObjectURL(pdfBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${filename}.pdf`;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                }, 100);
+                
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span>✅</span><span>完成！</span>';
+            } catch (error) {
+                console.error('Download error:', error);
+                pdf.save(`${filename}.pdf`);
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span>✅</span><span>完成！</span>';
+            }
             
             setTimeout(() => {
                 generateBtn.innerHTML = '<span>📥</span><span>生成 PDF</span>';
