@@ -271,6 +271,10 @@
             z-index: 10;
         }
 
+        .preview-item .mask-badge.warning {
+            background: rgba(255, 183, 77, 0.9);
+        }
+
         .preview-item .controls-overlay {
             position: absolute;
             top: 10px;
@@ -605,9 +609,10 @@
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
                 
+                // 增強對比度到 3.0 以提高辨識率
                 for (let i = 0; i < data.length; i += 4) {
                     let gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                    gray = ((gray - 128) * 2.5) + 128;
+                    gray = ((gray - 128) * 3.0) + 128;
                     gray = Math.max(0, Math.min(255, gray));
                     data[i] = data[i + 1] = data[i + 2] = gray;
                 }
@@ -640,7 +645,7 @@
                 }
                 
                 if (!deviceInfoPosition) {
-                    console.log('✗ 未找到「設備信息」文字');
+                    console.log('✗ 未找到「設備信息」文字，將使用雙重遮蔽 fallback');
                 }
                 
             } catch (error) {
@@ -915,29 +920,44 @@
                 console.log(`✓ 第1張已遮蔽序號欄位與底部20%`);
             }
             
-            // 第4張：只在找到「設備信息」時遮蔽其下方區域
-            if (index === 3 && deviceInfoPosition) {
+            // 第4張：智能遮蔽「設備信息」下方內容
+            if (index === 3) {
                 ctx.fillStyle = 'white';
                 
-                // 從「設備信息」標題的底部開始遮蔽（不遮蔽標題本身）
-                const maskX = Math.max(0, deviceInfoPosition.x - 30);
-                const maskY = deviceInfoPosition.y + deviceInfoPosition.height + 5; // 從標題底部開始
-                
-                // 寬度：涵蓋整個設備信息區域
-                const maskWidth = Math.min(
-                    canvas.width - maskX,
-                    Math.max(deviceInfoPosition.width + 60, canvas.width * 0.85)
-                );
-                
-                // 高度：向下延伸覆蓋 Mac 型號和序號
-                const maskHeight = Math.min(
-                    deviceInfoPosition.height * 8,
-                    canvas.height - maskY,
-                    canvas.height * 0.25
-                );
-                
-                ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
-                console.log('✓ 第4張已遮蔽設備信息下方內容區域');
+                if (deviceInfoPosition) {
+                    // OCR 成功：精準遮蔽「Mac - 序號」這一行
+                    const maskX = Math.max(0, deviceInfoPosition.x - 30);
+                    const maskY = deviceInfoPosition.y + deviceInfoPosition.height + 5;
+                    
+                    const maskWidth = Math.min(
+                        canvas.width - maskX,
+                        Math.max(deviceInfoPosition.width + 60, canvas.width * 0.85)
+                    );
+                    
+                    const maskHeight = Math.min(
+                        deviceInfoPosition.height * 6,
+                        canvas.height - maskY,
+                        canvas.height * 0.2
+                    );
+                    
+                    ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
+                    console.log('✓ 第4張已遮蔽設備信息下方內容（OCR精準定位）');
+                } else {
+                    // OCR 失敗：雙重 fallback 遮蔽
+                    const maskX = Math.floor(canvas.width * 0.05);
+                    const maskWidth = Math.floor(canvas.width * 0.9);
+                    const maskHeight = Math.floor(canvas.height * 0.2);
+                    
+                    // 位置1：上方 15%
+                    const maskY1 = Math.floor(canvas.height * 0.15);
+                    ctx.fillRect(maskX, maskY1, maskWidth, maskHeight);
+                    
+                    // 位置2：中下方 40%
+                    const maskY2 = Math.floor(canvas.height * 0.40);
+                    ctx.fillRect(maskX, maskY2, maskWidth, maskHeight);
+                    
+                    console.log('✓ 第4張已使用雙重遮蔽 fallback（位置1: 15%, 位置2: 40%）');
+                }
             }
             
             return canvas.toDataURL('image/jpeg', 0.9);
@@ -958,7 +978,7 @@
                     if (deviceInfoPosition) {
                         maskBadge = `<div class="mask-badge">✓ 設備信息內容已遮蔽（OCR定位）</div>`;
                     } else {
-                        maskBadge = `<div class="mask-badge">⚠️ 未找到設備信息</div>`;
+                        maskBadge = `<div class="mask-badge warning">⚠️ 雙重遮蔽（Fallback）</div>`;
                     }
                 }
                 
