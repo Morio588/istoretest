@@ -597,7 +597,6 @@
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 掃描整張圖片（不限制區域）
                 canvas.width = img.width;
                 canvas.height = img.height;
                 
@@ -606,7 +605,6 @@
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
                 
-                // 增強對比度
                 for (let i = 0; i < data.length; i += 4) {
                     let gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
                     gray = ((gray - 128) * 2.5) + 128;
@@ -622,13 +620,11 @@
                 
                 console.log('第4張圖片 OCR 結果:', result.data.text);
                 
-                // 尋找「設備信息」相關文字
                 const lines = result.data.lines;
                 for (const line of lines) {
                     const text = line.text;
                     if (text.includes('設備信息') || text.includes('設備訊息') || 
-                        text.includes('设备信息') || text.includes('設備資訊') ||
-                        text.includes('設備信息已遮蔽')) {
+                        text.includes('设备信息') || text.includes('設備資訊')) {
                         const bbox = line.bbox;
                         
                         deviceInfoPosition = {
@@ -644,7 +640,7 @@
                 }
                 
                 if (!deviceInfoPosition) {
-                    console.log('✗ 未找到「設備信息」文字，使用預設位置');
+                    console.log('✗ 未找到「設備信息」文字');
                 }
                 
             } catch (error) {
@@ -919,49 +915,29 @@
                 console.log(`✓ 第1張已遮蔽序號欄位與底部20%`);
             }
             
-            // 第4張：OCR 找到「設備信息」後遮蔽
-            if (index === 3) {
+            // 第4張：只在找到「設備信息」時遮蔽其下方區域
+            if (index === 3 && deviceInfoPosition) {
                 ctx.fillStyle = 'white';
                 
-                if (deviceInfoPosition) {
-                    // 根據 OCR 找到的位置遮蔽
-                    // 從「設備信息」標題開始，向左右擴展，向下延伸
-                    const paddingX = 20;
-                    const paddingTop = 10;
-                    
-                    const maskX = Math.max(0, deviceInfoPosition.x - paddingX);
-                    const maskY = Math.max(0, deviceInfoPosition.y - paddingTop);
-                    
-                    // 寬度：從文字位置向左右擴展，最大到畫面寬度的 90%
-                    const maskWidth = Math.min(
-                        canvas.width - maskX,
-                        Math.max(deviceInfoPosition.width + paddingX * 2, canvas.width * 0.85)
-                    );
-                    
-                    // 高度：向下延伸足夠覆蓋 Mac 型號和序號
-                    // 根據文字高度自適應，大約是標題高度的 8-12 倍
-                    const baseHeight = deviceInfoPosition.height * 10;
-                    const maskHeight = Math.min(baseHeight, canvas.height - maskY, canvas.height * 0.3);
-                    
-                    ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
-                    console.log('✓ 第4張已遮蔽設備信息區域（OCR定位）');
-                } else {
-                    // Fallback：如果 OCR 沒找到，使用預設位置
-                    // 嘗試遮蔽可能出現設備信息的區域（上方或中下方）
-                    const maskX = Math.floor(canvas.width * 0.05);
-                    const maskWidth = Math.floor(canvas.width * 0.9);
-                    const maskHeight = Math.floor(canvas.height * 0.2);
-                    
-                    // 嘗試兩個可能位置：上方 15% 和 中下方 40%
-                    const maskY1 = Math.floor(canvas.height * 0.15);
-                    const maskY2 = Math.floor(canvas.height * 0.40);
-                    
-                    // 遮蔽兩個區域
-                    ctx.fillRect(maskX, maskY1, maskWidth, maskHeight);
-                    ctx.fillRect(maskX, maskY2, maskWidth, maskHeight);
-                    
-                    console.log('✓ 第4張已遮蔽設備信息區域（預設位置：雙重遮蔽）');
-                }
+                // 從「設備信息」標題的底部開始遮蔽（不遮蔽標題本身）
+                const maskX = Math.max(0, deviceInfoPosition.x - 30);
+                const maskY = deviceInfoPosition.y + deviceInfoPosition.height + 5; // 從標題底部開始
+                
+                // 寬度：涵蓋整個設備信息區域
+                const maskWidth = Math.min(
+                    canvas.width - maskX,
+                    Math.max(deviceInfoPosition.width + 60, canvas.width * 0.85)
+                );
+                
+                // 高度：向下延伸覆蓋 Mac 型號和序號
+                const maskHeight = Math.min(
+                    deviceInfoPosition.height * 8,
+                    canvas.height - maskY,
+                    canvas.height * 0.25
+                );
+                
+                ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
+                console.log('✓ 第4張已遮蔽設備信息下方內容區域');
             }
             
             return canvas.toDataURL('image/jpeg', 0.9);
@@ -979,8 +955,11 @@
                     const machineText = machineSerialPosition ? ' + 機器序號' : '';
                     maskBadge = `<div class="mask-badge">✓ 序號${machineText}與底部20%已遮蔽${serialText}</div>`;
                 } else if (index === 3) {
-                    const deviceText = deviceInfoPosition ? '（OCR定位）' : '（預設雙重遮蔽）';
-                    maskBadge = `<div class="mask-badge">✓ 設備信息已遮蔽${deviceText}</div>`;
+                    if (deviceInfoPosition) {
+                        maskBadge = `<div class="mask-badge">✓ 設備信息內容已遮蔽（OCR定位）</div>`;
+                    } else {
+                        maskBadge = `<div class="mask-badge">⚠️ 未找到設備信息</div>`;
+                    }
                 }
                 
                 div.innerHTML = `
