@@ -466,7 +466,7 @@
         </div>
 
         <div class="sort-hint" id="sortHint">
-            📋 第1張自動遮蔽 SN 序號與底部 / 第4張序號遮蔽 - 可使用 ↑↓ 調整順序
+            📋 第1張機器序號與底部遮蔽(20%) / 第2張自動辨識發票號碼 / 第4張設備信息遮蔽 - 可使用 ↑↓ 調整順序
         </div>
 
         <div class="controls" id="controls">
@@ -495,7 +495,7 @@
             </button>
             <div class="download-tip" id="downloadTip">
                 <strong>💡 iOS 下載提示：</strong>
-                點擊「生成 PDF」後，檔案會自動下載。請到 Safari 的「下載項目」(↓) 查看，檔名會是你設定的發票號碼。
+                點擊「生成 PDF」後,檔案會自動下載。請到 Safari 的「下載項目」(↓) 查看，檔名會是你設定的發票號碼。
             </div>
         </div>
     </div>
@@ -507,9 +507,9 @@
         let processedImages = [];
         let detectedFilename = '';
         let serialNumbers = [];
-        let snSerials = []; // 儲存 SN: 序號的位置資訊
         let serialPosValue = 23.5;
         let serialHeightValue = 2.5;
+        let machineSerialPosition = null;
 
         const fileInput = document.getElementById('fileInput');
         const previewGrid = document.getElementById('previewGrid');
@@ -542,33 +542,30 @@
             images = [];
             processedImages = [];
             serialNumbers = [];
-            snSerials = [];
+            machineSerialPosition = null;
             
             for (const file of files) {
                 await loadImage(file);
             }
             
-            // 辨識所有圖片的 SN 序號
-            for (let i = 0; i < images.length; i++) {
-                await detectSNSerial(i);
-            }
-            
             if (images.length >= 1) {
                 await detectFirstImageSerial();
+                processAllImages();
+                updateStats();
+                controls.style.display = 'block';
+                filenameSection.style.display = 'block';
+                previewSection.style.display = 'block';
+                sortHint.classList.add('show');
+                
+                if (isIOS) {
+                    downloadTip.classList.add('show');
+                }
+                
+                await detectMachineSerial();
+                await performOCR();
+                
+                processAllImages();
             }
-            
-            processAllImages();
-            updateStats();
-            controls.style.display = 'block';
-            filenameSection.style.display = 'block';
-            previewSection.style.display = 'block';
-            sortHint.classList.add('show');
-            
-            if (isIOS) {
-                downloadTip.classList.add('show');
-            }
-            
-            await performOCR();
         }
 
         function loadImage(file) {
@@ -586,26 +583,22 @@
             });
         }
 
-        async function detectSNSerial(index) {
-            console.log(`開始辨識圖片 ${index + 1} 的 SN 序號...`);
+        async function detectMachineSerial() {
+            console.log('開始辨識第一張圖片的「機器序號」文字位置...');
             
             try {
-                const img = images[index];
+                const img = images[0];
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 擷取左側區域（SN 序號通常在商品資訊區）
-                const cropX = 0;
-                const cropY = Math.floor(img.height * 0.25);
-                const cropWidth = Math.floor(img.width * 0.4);
-                const cropHeight = Math.floor(img.height * 0.35);
+                const scanWidth = Math.floor(img.width * 0.4);
+                const scanHeight = Math.floor(img.height * 0.5);
                 
-                canvas.width = cropWidth;
-                canvas.height = cropHeight;
+                canvas.width = scanWidth;
+                canvas.height = scanHeight;
                 
-                ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+                ctx.drawImage(img, 0, 0, scanWidth, scanHeight, 0, 0, scanWidth, scanHeight);
                 
-                // 增強對比度
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
                 
@@ -618,40 +611,40 @@
                 
                 ctx.putImageData(imageData, 0, 0);
                 
-                const result = await Tesseract.recognize(canvas, 'eng', { logger: () => {} });
-                const text = result.data.text;
+                const result = await Tesseract.recognize(canvas, 'chi_tra+eng', { 
+                    logger: () => {} 
+                });
                 
-                console.log(`圖片 ${index + 1} OCR 結果:`, text);
+                console.log('第一張圖片 OCR 結果:', result.data.text);
                 
-                // 尋找 SN: 開頭的序號
-                const snPattern = /SN[:：]\s*([A-Z0-9]{10,15})/gi;
-                const matches = [...text.matchAll(snPattern)];
+                const words = result.data.words;
+                for (const word of words) {
+                    const text = word.text;
+                    if (text.includes('機器序號') || text.includes('机器序号') || text.includes('機器序號')) {
+                        const bbox = word.bbox;
+                        machineSerialPosition = {
+                            x: bbox.x0,
+                            y: bbox.y0,
+                            width: bbox.x1 - bbox.x0,
+                            height: bbox.y1 - bbox.y0
+                        };
+                        console.log('✓ 找到「機器序號」文字位置:', machineSerialPosition);
+                        break;
+                    }
+                }
                 
-                if (matches.length > 0) {
-                    const snSerial = matches[0][1];
-                    console.log(`✓ 圖片 ${index + 1} 找到 SN 序號: ${snSerial}`);
-                    
-                    // 估算序號在原圖中的位置
-                    snSerials[index] = {
-                        serial: snSerial,
-                        x: cropX,
-                        y: cropY,
-                        width: cropWidth,
-                        height: Math.floor(img.height * 0.015) // 序號行高約 1.5%
-                    };
-                } else {
-                    console.log(`✗ 圖片 ${index + 1} 未找到 SN 序號`);
-                    snSerials[index] = null;
+                if (!machineSerialPosition) {
+                    console.log('✗ 未找到「機器序號」文字');
                 }
                 
             } catch (error) {
-                console.error(`圖片 ${index + 1} SN 序號辨識失敗:`, error);
-                snSerials[index] = null;
+                console.error('機器序號文字辨識失敗:', error);
+                machineSerialPosition = null;
             }
         }
 
         async function detectFirstImageSerial() {
-            console.log('開始辨識第一張圖片的機器序號欄位...');
+            console.log('開始辨識第一張圖片的序號...');
             
             try {
                 const img = images[0];
@@ -703,33 +696,35 @@
         }
 
         async function performOCR() {
-            if (images.length === 0) return;
+            if (images.length < 2) {
+                const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                detectedFilename = `掃描文件_${timestamp}`;
+                filenameInput.value = detectedFilename;
+                ocrStatus.className = 'ocr-status error';
+                ocrStatus.innerHTML = '⚠️ 需要至少2張圖片才能辨識發票號碼';
+                return;
+            }
             
             ocrStatus.className = 'ocr-status loading';
-            ocrStatus.innerHTML = '🔍 正在辨識發票號碼...';
+            ocrStatus.innerHTML = '🔍 正在辨識第2張圖片的發票號碼（完整掃描）...';
             filenameInput.value = '';
             
             try {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                const img = images[0];
+                const img = images[1];
                 
-                const cropWidth = Math.floor(img.width * 0.4);
-                const cropHeight = Math.floor(img.height * 0.15);
-                const cropX = img.width - cropWidth;
-                const cropY = 0;
+                canvas.width = img.width;
+                canvas.height = img.height;
                 
-                canvas.width = cropWidth;
-                canvas.height = cropHeight;
-                
-                ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+                ctx.drawImage(img, 0, 0);
                 
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
                 
                 for (let i = 0; i < data.length; i += 4) {
                     let gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                    gray = ((gray - 128) * 1.5) + 128;
+                    gray = ((gray - 128) * 2.5) + 128;
                     gray = Math.max(0, Math.min(255, gray));
                     data[i] = data[i + 1] = data[i + 2] = gray;
                 }
@@ -743,43 +738,40 @@
                         logger: m => {
                             if (m.status === 'recognizing text') {
                                 const progress = Math.round(m.progress * 100);
-                                ocrStatus.innerHTML = `🔍 辨識中... ${progress}%`;
+                                ocrStatus.innerHTML = `🔍 辨識第2張（完整掃描）... ${progress}%`;
                             }
                         }
                     }
                 );
                 
-                const text = result.data.text.replace(/\s/g, '');
-                console.log('發票 OCR 原始結果:', text);
+                const text = result.data.text;
+                console.log('第2張圖片 OCR 完整結果:', text);
                 
                 const patterns = [
-                    /[A-Z]{2}-?\d{8}/gi,
-                    /[A-Z0]{2}-?\d{8}/gi,
-                    /[A-Z]{1}[A-Z0]{1}-?\d{8}/gi
+                    /[A-Z]{2}-\d{8}/gi,
+                    /[A-Z]{2}\d{8}/gi,
+                    /[A-Z]{2}\s*-?\s*\d{8}/gi
                 ];
                 
-                let matches = null;
+                let foundMatch = null;
+                
                 for (const pattern of patterns) {
-                    matches = text.match(pattern);
-                    if (matches && matches.length > 0) break;
+                    const matches = text.match(pattern);
+                    if (matches && matches.length > 0) {
+                        foundMatch = matches[0].replace(/\s/g, '');
+                        if (!foundMatch.includes('-') && foundMatch.length === 10) {
+                            foundMatch = foundMatch.substring(0, 2) + '-' + foundMatch.substring(2);
+                        }
+                        break;
+                    }
                 }
                 
-                if (matches && matches.length > 0) {
-                    let invoiceNum = matches[0].replace(/-/g, '');
-                    invoiceNum = invoiceNum.replace(/0([A-Z])/g, 'O$1');
-                    invoiceNum = invoiceNum.replace(/([A-Z])0/g, '$1O');
-                    
-                    if (invoiceNum.length >= 10) {
-                        const prefix = invoiceNum.substring(0, 2).toUpperCase();
-                        const numbers = invoiceNum.substring(2, 10);
-                        detectedFilename = `${prefix}-${numbers}`;
-                        
-                        filenameInput.value = detectedFilename;
-                        ocrStatus.className = 'ocr-status success';
-                        ocrStatus.innerHTML = `✅ 已辨識發票號碼: ${detectedFilename}`;
-                    } else {
-                        throw new Error('格式不符');
-                    }
+                if (foundMatch) {
+                    detectedFilename = foundMatch;
+                    filenameInput.value = detectedFilename;
+                    ocrStatus.className = 'ocr-status success';
+                    ocrStatus.innerHTML = `✅ 已辨識發票號碼: ${detectedFilename}`;
+                    console.log('✓ 找到電子發票號碼:', detectedFilename);
                 } else {
                     throw new Error('未找到發票號碼');
                 }
@@ -789,7 +781,7 @@
                 detectedFilename = `掃描文件_${timestamp}`;
                 filenameInput.value = detectedFilename;
                 ocrStatus.className = 'ocr-status error';
-                ocrStatus.innerHTML = '⚠️ 未找到發票號碼，請手動輸入或使用預設名稱';
+                ocrStatus.innerHTML = '⚠️ 第2張未找到發票號碼，請手動輸入或使用預設名稱';
             }
         }
 
@@ -827,23 +819,19 @@
             
             ctx.putImageData(imageData, 0, 0);
             
-            // 遮蔽 SN 序號
-            if (snSerials[index]) {
-                const sn = snSerials[index];
-                
-                // 使用 OCR 偵測到的區域，擴大遮蔽範圍
-                const maskX = sn.x;
-                const maskY = sn.y + Math.floor(sn.height * 8); // 往下一些
-                const maskWidth = sn.width;
-                const maskHeight = Math.floor(canvas.height * 0.02); // 2% 高度
-                
-                ctx.fillStyle = 'white';
-                ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
-                
-                console.log(`✓ 已遮蔽圖片 ${index + 1} 的 SN 序號: ${sn.serial}`);
-            }
-            
             if (index === 0) {
+                ctx.fillStyle = 'white';
+                
+                if (machineSerialPosition) {
+                    const maskX = Math.max(0, machineSerialPosition.x - 10);
+                    const maskY = Math.max(0, machineSerialPosition.y - 5);
+                    const maskWidth = Math.min(canvas.width - maskX, machineSerialPosition.width + 200);
+                    const maskHeight = machineSerialPosition.height + 30;
+                    
+                    ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
+                    console.log('✓ 已遮蔽「機器序號」文字區域');
+                }
+                
                 const serialPosPercent = serialPosValue / 100;
                 const serialHeightPercent = serialHeightValue / 100;
                 
@@ -852,26 +840,29 @@
                 const serialWidth = Math.floor(canvas.width * 0.7);
                 const serialHeight = Math.floor(canvas.height * serialHeightPercent);
                 
-                ctx.fillStyle = 'white';
                 ctx.fillRect(serialX, serialY, serialWidth, serialHeight);
                 
-                const maskHeight = Math.floor(canvas.height * 0.1);
+                const maskHeight = Math.floor(canvas.height * 0.2);
                 const maskY = canvas.height - maskHeight;
                 ctx.fillRect(0, maskY, canvas.width, maskHeight);
                 
-                console.log(`✓ 第1張已遮蔽序號欄位 (位置: ${serialPosValue}%, 高度: ${serialHeightValue}%)`);
+                console.log(`✓ 第1張已遮蔽序號欄位與底部20%`);
             }
             
+            // 第4張：遮蔽「設備信息」區域（包含 Mac 序號）
             if (index === 3) {
-                const maskX = Math.floor(canvas.width * 0.15);
-                const maskY = Math.floor(canvas.height * 0.42);
-                const maskWidth = Math.floor(canvas.width * 0.7);
-                const maskHeight = Math.floor(canvas.height * 0.08);
-                
                 ctx.fillStyle = 'white';
+                
+                // 遮蔽「設備信息」標題到 Mac 序號的區域
+                // 從上方約 14% 開始，高度約 18%
+                const maskX = Math.floor(canvas.width * 0.05);  // 左邊留 5% 邊距
+                const maskY = Math.floor(canvas.height * 0.14);  // 從 14% 開始（「設備信息」標題位置）
+                const maskWidth = Math.floor(canvas.width * 0.9); // 寬度 90%
+                const maskHeight = Math.floor(canvas.height * 0.18); // 高度 18%（涵蓋整個設備信息區塊）
+                
                 ctx.fillRect(maskX, maskY, maskWidth, maskHeight);
                 
-                console.log('✓ 第4張已遮蔽序號區域');
+                console.log('✓ 第4張已遮蔽設備信息區域');
             }
             
             return canvas.toDataURL('image/jpeg', 0.9);
@@ -886,20 +877,10 @@
                 let maskBadge = '';
                 if (index === 0) {
                     const serialText = serialNumbers[0] ? `: ${serialNumbers[0]}` : '';
-                    maskBadge = `<div class="mask-badge">✓ 序號與底部已遮蔽${serialText}</div>`;
+                    const machineText = machineSerialPosition ? ' + 機器序號' : '';
+                    maskBadge = `<div class="mask-badge">✓ 序號${machineText}與底部20%已遮蔽${serialText}</div>`;
                 } else if (index === 3) {
-                    maskBadge = '<div class="mask-badge">✓ 序號已遮蔽</div>';
-                }
-                
-                // 如果有 SN 序號，也顯示
-                if (snSerials[index]) {
-                    const snText = snSerials[index].serial;
-                    if (!maskBadge) {
-                        maskBadge = `<div class="mask-badge">✓ SN 已遮蔽: ${snText}</div>`;
-                    } else {
-                        // 第一張有兩種遮蔽
-                        maskBadge = `<div class="mask-badge">✓ SN + 序號 + 底部已遮蔽</div>`;
-                    }
+                    maskBadge = '<div class="mask-badge">✓ 設備信息已遮蔽</div>';
                 }
                 
                 div.innerHTML = `
@@ -974,7 +955,6 @@
             
             [images[index], images[newIndex]] = [images[newIndex], images[index]];
             [serialNumbers[index], serialNumbers[newIndex]] = [serialNumbers[newIndex], serialNumbers[index]];
-            [snSerials[index], snSerials[newIndex]] = [snSerials[newIndex], snSerials[index]];
             
             processAllImages();
             updateStats();
@@ -984,7 +964,6 @@
             images.splice(index, 1);
             processedImages.splice(index, 1);
             serialNumbers.splice(index, 1);
-            snSerials.splice(index, 1);
             
             if (images.length > 0) {
                 processAllImages();
