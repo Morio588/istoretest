@@ -1680,6 +1680,128 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    /* Apple-inspired visual system — kept at the end to preserve existing behaviour. */
+    :root {
+      color-scheme: light;
+      --system-blue: #0071e3;
+      --system-blue-dark: #005bb5;
+      --ink: #1d1d1f;
+      --muted: #6e6e73;
+      --canvas: #f5f5f7;
+      --surface: rgba(255, 255, 255, .78);
+      --line: rgba(0, 0, 0, .10);
+      --radius: 22px;
+      font: 100%/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Noto Sans TC", sans-serif;
+    }
+
+    body {
+      font-family: inherit;
+      color: var(--ink);
+      background:
+        radial-gradient(1000px 480px at 10% -5%, rgba(120, 174, 255, .22), transparent 62%),
+        radial-gradient(800px 400px at 95% 8%, rgba(198, 218, 255, .34), transparent 60%),
+        var(--canvas);
+      padding: 28px;
+    }
+
+    #loginPage {
+      background: radial-gradient(900px 520px at 50% -10%, #dcecff, transparent 68%), #f5f5f7;
+    }
+    .login-container {
+      max-width: 420px;
+      margin: max(12vh, 72px) auto;
+      padding: 44px 40px;
+      border: 1px solid rgba(255,255,255,.72);
+      border-radius: 28px;
+      background: rgba(255,255,255,.72);
+      box-shadow: 0 24px 70px rgba(0,0,0,.12);
+      backdrop-filter: blur(28px) saturate(160%);
+    }
+    .login-logo { width: 68px; height: 68px; border-radius: 18px; font-size: 34px; background: #111113; box-shadow: 0 12px 28px rgba(0,0,0,.18); }
+    .login-title { color: var(--ink); font-size: 28px; letter-spacing: -.035em; line-height: 1.15; }
+    .login-subtitle { color: var(--muted); }
+    .google-login-btn { border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+    .google-login-btn:hover { border-color: rgba(0,113,227,.35); background: #fff; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,.09); }
+    .google-login-btn:active, .nav-btn:active, .quick-filter-btn:active, .lowstock-btn:active, .clear-filters:active { transform: scale(.97); }
+
+    .container {
+      max-width: 1480px;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,.72);
+      border-radius: 30px;
+      box-shadow: 0 20px 55px rgba(0,0,0,.10);
+      backdrop-filter: blur(28px) saturate(155%);
+    }
+    .header {
+      padding: 38px 34px 22px;
+      color: var(--ink);
+      text-align: left;
+      background: linear-gradient(120deg, rgba(255,255,255,.86), rgba(239,246,255,.80));
+      border-bottom: 1px solid rgba(0,0,0,.07);
+      overflow: visible;
+    }
+    .header::before { display: none; }
+    h1 { color: var(--ink); font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.05; letter-spacing: -.045em; font-weight: 700; }
+    .divider { width: 44px; height: 3px; margin: 14px 0 10px; background: var(--system-blue); border-radius: 99px; }
+    .subtitle { color: var(--muted); font-size: .9375rem; }
+    .user-info { top: 26px; right: 30px; gap: 9px; padding: 6px 8px 6px 7px; background: rgba(255,255,255,.62); border: 1px solid rgba(0,0,0,.07); border-radius: 99px; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+    .user-avatar { width: 30px; height: 30px; border: 0; }
+    .user-name { color: #3a3a3c; font-size: 13px; }
+    .logout-btn { background: transparent; color: var(--system-blue); border-radius: 99px; padding: 7px 11px; }
+    .logout-btn:hover { background: #e8f2ff; color: var(--system-blue-dark); transform: none; }
+    .nav-menu { margin-top: 26px; justify-content: flex-start; gap: 6px; padding: 5px; width: fit-content; max-width: 100%; overflow-x: auto; border: 1px solid rgba(0,0,0,.08); border-radius: 13px; background: rgba(118,118,128,.10); }
+    .nav-btn { flex: 0 0 auto; padding: 8px 13px; border-radius: 9px; background: transparent; color: #45454a; font-size: 13px; font-weight: 500; transition: background .2s ease, color .2s ease, transform .15s ease, box-shadow .2s ease; }
+    .nav-btn:hover { background: rgba(255,255,255,.65); color: var(--ink); transform: none; }
+    .nav-btn.active { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+    .search-section, .table-section, .content-page, .lowstock-container { background: transparent; }
+    .search-section { padding: 30px 34px 18px; }
+    .search-container, .lowstock-controls { background: rgba(255,255,255,.66); border: 1px solid rgba(0,0,0,.08); border-radius: 18px; box-shadow: 0 5px 18px rgba(0,0,0,.035); }
+    #searchInput, .filter-select, .lowstock-select { background: rgba(245,245,247,.78); border: 1px solid transparent; border-radius: 12px; color: var(--ink); }
+    #searchInput { padding-top: 13px; padding-bottom: 13px; }
+    #searchInput:focus, .filter-select:focus, .lowstock-select:focus { border-color: rgba(0,113,227,.72); box-shadow: 0 0 0 4px rgba(0,113,227,.14); }
+    .clear-filters, .lowstock-btn { background: var(--system-blue); border-radius: 11px; box-shadow: none; transition: background .2s ease, transform .15s ease, box-shadow .2s ease; }
+    .clear-filters:hover, .lowstock-btn:hover { background: var(--system-blue-dark); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,113,227,.22); }
+    .quick-filter-btn, .quick-subcategory-btn, .lowstock-category-btn { border: 1px solid rgba(0,0,0,.10); border-radius: 99px; background: rgba(255,255,255,.82); color: #3a3a3c; transition: background .2s ease, color .2s ease, transform .15s ease; }
+    .quick-filter-btn:hover, .quick-subcategory-btn:hover, .lowstock-category-btn:hover { border-color: rgba(0,113,227,.35); color: var(--system-blue); transform: none; }
+    .quick-filter-btn.active, .quick-subcategory-btn.active, .lowstock-category-btn.active { background: var(--system-blue); border-color: var(--system-blue); color: #fff; box-shadow: none; }
+    .inventory-status { background: #eef7ee; border: 1px solid #c9e9cb; border-radius: 12px; color: #267034; }
+    .table-section { padding: 18px 34px 34px; }
+    .table-container, .lowstock-table-wrapper { border: 1px solid rgba(0,0,0,.09); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.05); }
+    thead, .lowstock-table thead { background: #f5f5f7; color: #6e6e73; }
+    th, .lowstock-table th { color: #6e6e73; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+    tbody tr, .lowstock-table tbody tr { border-color: rgba(0,0,0,.06); }
+    tbody tr:hover, .lowstock-table tbody tr:hover { background: #f5f9ff; }
+    td { color: #343437; }
+
+    .content-page, .lowstock-container { padding: 34px; }
+    .page-title, .lowstock-title { color: var(--ink); font-size: clamp(1.75rem, 3vw, 2.25rem); letter-spacing: -.035em; }
+    .lowstock-subtitle, .image-card-description { color: var(--muted); }
+    .summary-card, .image-card { border: 1px solid rgba(0,0,0,.09); border-radius: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.045); }
+    .summary-card:hover, .image-card:hover { border-color: rgba(0,113,227,.32); box-shadow: 0 12px 28px rgba(0,0,0,.08); transform: translateY(-2px); }
+    .summary-value, .image-card-title, .control-group label { color: var(--ink); }
+    .lowstock-controls { background: rgba(236,246,255,.70); }
+    .lowstock-export { background: #1f7a3d; }
+    .lowstock-export:hover { background: #176330; box-shadow: 0 8px 18px rgba(31,122,61,.20); }
+    .footer { color: #86868b; }
+
+    @media (max-width: 768px) {
+      body { padding: 12px; }
+      .container { margin: 0; border-radius: 22px; }
+      .header { padding: 28px 22px 18px; }
+      .user-info { position: static; width: fit-content; margin: 0 0 22px; }
+      .nav-menu { width: 100%; }
+      .search-section, .table-section, .content-page, .lowstock-container { padding-left: 20px; padding-right: 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .container, .login-container, .user-info, .search-container, .lowstock-controls { background: #fff; backdrop-filter: none; }
+    }
+    @media (prefers-contrast: more) {
+      .container, .search-container, .table-container, .lowstock-table-wrapper, .summary-card, .image-card { border-color: rgba(0,0,0,.45); }
+    }
   </style>
 </head>
 <body>
