@@ -2343,9 +2343,7 @@
         // 🆕 從 Firebase custom claims 取得角色（唯一權限來源）
         // 若 token 中還沒有 app_role（剛設定完 claims 的使用者），
         // 強制刷新一次 token，省去請同事手動登出再登入
-        let tokenResult = await user.getIdTokenResult();
-        if (!tokenResult.claims.app_role) {
-          tokenResult = await user.getIdTokenResult(true);
+        const tokenResult = await user.getIdTokenResult(true);
         }
         
         currentUserEmail = user.email;
