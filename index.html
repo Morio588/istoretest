@@ -2341,10 +2341,12 @@
         document.getElementById('userAvatar').src = user.photoURL || 'https://via.placeholder.com/36';
         
         // 🆕 從 Firebase custom claims 取得角色（唯一權限來源）
-        // 一律強制刷新 token（getIdTokenResult(true)），確保剛設定或剛變更的
-        // claims 立即生效，不用請同事登出再登入。
-        // 每次登入多一個網路請求，對 20 人規模可忽略。
-        const tokenResult = await user.getIdTokenResult(true);
+        // 若 token 中還沒有 app_role（剛設定完 claims 的使用者），
+        // 強制刷新一次 token，省去請同事手動登出再登入
+        let tokenResult = await user.getIdTokenResult();
+        if (!tokenResult.claims.app_role) {
+          tokenResult = await user.getIdTokenResult(true);
+        }
         
         currentUserEmail = user.email;
         const permissions = getUserPermissions(tokenResult.claims);
@@ -2427,7 +2429,7 @@
     // 🔧 換成你自己的 Supabase 專案值（Settings → API Keys）
     // publishable key 設計上就是公開的，放在 GitHub Pages 上沒有問題，
     // 安全性是靠 Firebase claims + 資料庫端的 get_inventory() 把關
-    const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
+    const SUPABASE_URL = 'https://ziiwtzqwytrfaikzkmsj.supabase.co';
     const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_OFmaIR4UoNPiJjZeHylt8A_igvk04RP';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
